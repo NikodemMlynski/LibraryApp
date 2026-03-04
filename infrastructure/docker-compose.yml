@@ -1,0 +1,116 @@
+services:
+  # ---------------- INFRASTRUKTURA ---------------- #
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: library_user
+      POSTGRES_PASSWORD: library_password
+      POSTGRES_DB: library_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Dodajemy Healthcheck
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U library_user -d library_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/library_db
+      KC_DB_USERNAME: library_user
+      KC_DB_PASSWORD: library_password
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+    command: start-dev --import-realm
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../backend/identity-service/realm-export.json:/opt/keycloak/data/import/realm.json
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - library-web
+      - lending-service
+      - payment-service
+      - notify-service
+      - analytics-service
+      - keycloak
+
+  # ---------------- FRONTEND ---------------- #
+  library-web:
+    build:
+      context: ../frontend/library-web
+      dockerfile: Dockerfile
+    volumes:
+      - ../frontend/library-web:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+
+  # ---------------- BACKEND SERWISY ---------------- #
+  lending-service:
+    build:
+      context: ../backend/lending-service
+      dockerfile: Dockerfile
+    volumes:
+      - ../backend/lending-service:/app
+    depends_on:
+      - db
+      - redis
+
+  payment-service:
+    build:
+      context: ../backend/payment-service
+      dockerfile: Dockerfile
+    volumes:
+      - ../backend/payment-service:/app
+    depends_on:
+      - db
+
+  notify-service:
+    build:
+      context: ../backend/notify-service
+      dockerfile: Dockerfile
+    volumes:
+      - ../backend/notify-service:/app
+    depends_on:
+      - redis
+
+  analytics-service:
+    build:
+      context: ../backend/analytics-service
+      dockerfile: Dockerfile
+    volumes:
+      - ../backend/analytics-service:/app
+    depends_on:
+      - db
+
+  # Catalog Service (Java) zakomentowany na później
+  # catalog-service: ...
+
+volumes:
+  postgres_data:
