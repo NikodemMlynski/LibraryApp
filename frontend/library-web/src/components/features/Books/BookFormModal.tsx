@@ -35,7 +35,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({ isOpen, onClose, b
       setAuthor(bookToEdit.author);
       setIsbn(bookToEdit.isbn);
       setAvailableCopies(bookToEdit.availableCopies);
-      setFile(bookToEdit.coverImageUrl);
+      setFile(bookToEdit.coverImageUrl as unknown as File);
     } else {
       setTitle('');
       setAuthor('');
