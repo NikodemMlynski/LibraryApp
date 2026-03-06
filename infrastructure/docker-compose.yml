@@ -76,11 +76,14 @@ services:
     build:
       context: ../backend/lending-service
       dockerfile: Dockerfile
-    volumes:
-      - ../backend/lending-service:/app
+    env_file:
+      - .env
+    ports:
+      - "8002:8000" # Zostawiamy port 8002 na zewnątrz, żebyś mógł testować prosto z Postmana (localhost:8002)
     depends_on:
       - db
-      - redis
+      - keycloak
+      - catalog-service
 
   payment-service:
     build:
