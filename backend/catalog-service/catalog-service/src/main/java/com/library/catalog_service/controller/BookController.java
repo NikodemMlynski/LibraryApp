@@ -21,6 +21,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 @RestController
 @RequestMapping("/api/catalog/books")
 public class BookController {
@@ -31,8 +35,11 @@ public class BookController {
     private S3Service s3Service;
 
     @GetMapping
-    public List<Book> getAllBooks() {
-        return bookRepository.findAll();
+    public Page<Book> getAllBooks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return bookRepository.findAll(pageable);
     }
 
     @GetMapping("/{id}")
@@ -63,7 +70,7 @@ public class BookController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('librarian') or hasRole('admin')")
+    @PreAuthorize("hasRole('librarian') or hasRole('admin') or hasRole('reader')")
     public ResponseEntity<Book> updateBooik(
             @PathVariable Long id,
             @RequestParam("title") String title,

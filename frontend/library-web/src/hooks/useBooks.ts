@@ -10,6 +10,21 @@ export interface Book {
   coverImageUrl: string;
 }
 
+export interface PaginatedBooks {
+  content: Book[];
+  pageable: {
+    pageNumber: number;
+    pageSize: number;
+  };
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+  first: boolean;
+  size: number;
+  number: number;
+  empty: boolean;
+}
+
 const API_URL = 'http://localhost/api/catalog/books';
 
 export const fetchWithAuth = async (url: string, options: RequestInit, token?: string) => {
@@ -34,13 +49,13 @@ export const fetchWithAuth = async (url: string, options: RequestInit, token?: s
   return response.json();
 };
 
-export const useBooks = () => {
+export const useBooks = (page: number = 0, size: number = 10) => {
   const auth = useAuth();
   const token = auth.user?.access_token;
 
-  return useQuery<Book[], Error>({
-    queryKey: ['books'],
-    queryFn: () => fetchWithAuth(API_URL, { method: 'GET' }, token),
+  return useQuery<PaginatedBooks, Error>({
+    queryKey: ['books', page, size],
+    queryFn: () => fetchWithAuth(`${API_URL}?page=${page}&size=${size}`, { method: 'GET' }, token),
     enabled: !!token, 
   });
 };

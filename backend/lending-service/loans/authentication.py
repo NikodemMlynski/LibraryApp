@@ -34,11 +34,13 @@ class KeycloakJWTAuthentication(BaseAuthentication):
         except Exception as e:
             raise AuthenticationFailed(f"Nieprawidłowy lub wygasły token: {str(e)}")
         
-        # Sukces! Wyciągamy ID użytkownika z Keycloaka (pole 'sub')
-        keycloak_user_id = payload.get('sub')
+        # Sukces! Wyciągamy czytelną nazwę użytkownika (pole 'preferred_username')
+        keycloak_username = payload.get('preferred_username')
+        if not keycloak_username:
+            raise AuthenticationFailed("Brak preferred_username w tokenie")
         
         # Tworzymy lokalnego usera w Django w locie, żeby framework był "szczęśliwy"
-        user, created = User.objects.get_or_create(username=keycloak_user_id)
+        user, created = User.objects.get_or_create(username=keycloak_username)
         
         # Zwracamy tuple: (użytkownik, token) - tego wymaga Django REST Framework
         return (user, token)

@@ -23,7 +23,8 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({ isOpen, onClose })
   const [dueDate, setDueDate] = useState('');
 
   const { data: users } = useLibrarianUsers();
-  const { data: books } = useBooks();
+  const { data: paginatedBooks } = useBooks(0, 1000); // Fetch a large page for dropdowns
+  const books = paginatedBooks?.content || [];
   const createLoan = useCreateLibrarianLoan();
 
   // Reset form when modal opens
@@ -81,7 +82,7 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({ isOpen, onClose })
                 <option value="" disabled>Select a user</option>
                 {users?.map(user => (
                   <option key={user.id} value={user.username}>
-                    {user.first_name} {user.last_name} ({user.email}) - {user.username}
+                    {user.username}
                   </option>
                 ))}
               </select>

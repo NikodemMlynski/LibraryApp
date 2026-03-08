@@ -1,4 +1,5 @@
 import requests
+import os
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -8,19 +9,18 @@ from .serializers import LoanSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from django.contrib.auth.models import User
-
-CATALOG_SERVICE_URL = "http://catalog-service:8080/api/catalog/books"
-
+CATALOG_SERVICE_URL = "http://catalog-service:8081/api/catalog/books"
 class BorrowBookView(APIView):
     permission_classes = [IsAuthenticated]        
 
     def post(self, request):
         book_id = request.data.get('book_id')
-
         user_id = request.user.username 
+        auth_header = request.headers.get('Authorization')
+        headers = {'Authorization': auth_header} if auth_header else {}
 
         try:
-            response = requests.get(f"{CATALOG_SERVICE_URL}/{book_id}")
+            response = requests.get(f"{CATALOG_SERVICE_URL}/{book_id}", headers=headers)
             if response.status_code != 200:
                 return Response({"error": "Książka nie istnieje"}, status=status.HTTP_404_NOT_FOUND)
             
@@ -37,7 +37,7 @@ class BorrowBookView(APIView):
         )
 
         book_data['availableCopies'] -= 1
-        requests.put(f"{CATALOG_SERVICE_URL}/{book_id}", json=book_data)
+        requests.put(f"{CATALOG_SERVICE_URL}/{book_id}", data=book_data, headers=headers)
 
         return Response(LoanSerializer(loan).data, status=status.HTTP_201_CREATED)
 
@@ -53,9 +53,12 @@ class ReturnBookView(APIView):
         except Loan.DoesNotExist:
             return Response({"error": "Nie znaleziono aktywnego wypożyczenia dla tego użytkownika"}, status=status.HTTP_404_NOT_FOUND)
 
+        auth_header = request.headers.get('Authorization')
+        headers = {'Authorization': auth_header} if auth_header else {}
+
         # 2. Pytamy Javę o aktualny stan książki
         try:
-            response = requests.get(f"{CATALOG_SERVICE_URL}/{loan.book_id}")
+            response = requests.get(f"{CATALOG_SERVICE_URL}/{loan.book_id}", headers=headers)
             if response.status_code != 200:
                 return Response({"error": "Książka nie istnieje w Catalog Service"}, status=status.HTTP_404_NOT_FOUND)
             
@@ -65,7 +68,7 @@ class ReturnBookView(APIView):
             book_data['availableCopies'] += 1
             
             # Wysyłamy aktualizację do Javy
-            update_response = requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", json=book_data)
+            update_response = requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", data=book_data, headers=headers)
             
             if update_response.status_code != 200:
                 return Response({"error": "Nie udało się zaktualizować liczby książek w katalogu"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -118,8 +121,11 @@ class LibrarianCreateLoanView(APIView):
         if not user_id or not book_id:
             return Response({"error": "user_id and book_id are required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        auth_header = request.headers.get('Authorization')
+        headers = {'Authorization': auth_header} if auth_header else {}
+
         try:
-            response = requests.get(f"{CATALOG_SERVICE_URL}/{book_id}")
+            response = requests.get(f"{CATALOG_SERVICE_URL}/{book_id}", headers=headers)
             if response.status_code != 200:
                 return Response({"error": "Book does not exist in Catalog Service"}, status=status.HTTP_404_NOT_FOUND)
             
@@ -139,7 +145,7 @@ class LibrarianCreateLoanView(APIView):
             loan.save()
 
         book_data['availableCopies'] -= 1
-        requests.put(f"{CATALOG_SERVICE_URL}/{book_id}", json=book_data)
+        requests.put(f"{CATALOG_SERVICE_URL}/{book_id}", data=book_data, headers=headers)
 
         return Response(LoanSerializer(loan).data, status=status.HTTP_201_CREATED)
 
@@ -154,13 +160,16 @@ class LibrarianUpdateLoanView(APIView):
             
         action = request.data.get('action') 
         
+        auth_header = request.headers.get('Authorization')
+        headers = {'Authorization': auth_header} if auth_header else {}
+        
         if action == 'return' and loan.status != 'RETURNED':
             try:
-                response = requests.get(f"{CATALOG_SERVICE_URL}/{loan.book_id}")
+                response = requests.get(f"{CATALOG_SERVICE_URL}/{loan.book_id}", headers=headers)
                 if response.status_code == 200:
                     book_data = response.json()
                     book_data['availableCopies'] += 1
-                    requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", json=book_data)
+                    requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", data=book_data, headers=headers)
             except requests.exceptions.RequestException:
                 return Response({"error": "Error communicating with Catalog Service"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
@@ -184,5 +193,45 @@ class LibrarianUserListView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        users = User.objects.all().values('id', 'username', 'email', 'first_name', 'last_name')
-        return Response(list(users))
+        # 1. Pobierz token admina z Keycloaka
+        admin_user = os.environ.get('KEYCLOAK_ADMIN_USER', 'admin')
+        admin_password = os.environ.get('KEYCLOAK_ADMIN_PASSWORD', 'twoje_tajne_haslo')
+        keycloak_url = "http://keycloak:8080"
+        
+        token_url = f"{keycloak_url}/auth/realms/master/protocol/openid-connect/token"
+        token_data = {
+            'client_id': 'admin-cli',
+            'username': admin_user,
+            'password': admin_password,
+            'grant_type': 'password'
+        }
+        
+        try:
+            token_res = requests.post(token_url, data=token_data)
+            if token_res.status_code != 200:
+                return Response({"error": "Failed to authenticate with Keycloak"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+            access_token = token_res.json().get('access_token')
+            
+            # 2. Pobierz uzytkownikow o roli 'reader' dla realmu 'library-system'
+            users_url = f"{keycloak_url}/auth/admin/realms/library-system/roles/reader/users"
+            headers = {'Authorization': f'Bearer {access_token}'}
+            
+            users_res = requests.get(users_url, headers=headers)
+            if users_res.status_code != 200:
+                return Response({"error": "Failed to fetch users from Keycloak"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+            keycloak_users = users_res.json()
+            
+            # 3. Zmapuj dane tak, abysmy zwrocili id oraz username (preferred_username) dla kazdego z nich
+            users_list = []
+            for u in keycloak_users:
+                users_list.append({
+                    'id': u.get('id'),
+                    'username': u.get('username')
+                })
+                
+            return Response(users_list)
+            
+        except requests.exceptions.RequestException as e:
+            return Response({"error": f"Error communicating with Keycloak: {str(e)}"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
