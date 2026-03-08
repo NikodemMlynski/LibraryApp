@@ -42,5 +42,11 @@ class KeycloakJWTAuthentication(BaseAuthentication):
         # Tworzymy lokalnego usera w Django w locie, żeby framework był "szczęśliwy"
         user, created = User.objects.get_or_create(username=keycloak_username)
         
+        email = payload.get('email')
+        if email and user.email != email:
+            user.email = email
+            user.save(update_fields=['email'])
+
+        
         # Zwracamy tuple: (użytkownik, token) - tego wymaga Django REST Framework
         return (user, token)

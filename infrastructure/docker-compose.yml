@@ -84,6 +84,32 @@ services:
       - keycloak
       - catalog-service
 
+  lending-celery-worker:
+    build:
+      context: ../backend/lending-service
+      dockerfile: Dockerfile
+    command: celery -A lending_project worker -l info
+    env_file:
+      - .env
+    volumes:
+      - ../backend/lending-service:/app
+    depends_on:
+      - db
+      - redis
+
+  lending-celery-beat:
+    build:
+      context: ../backend/lending-service
+      dockerfile: Dockerfile
+    command: celery -A lending_project beat -l info
+    env_file:
+      - .env
+    volumes:
+      - ../backend/lending-service:/app
+    depends_on:
+      - db
+      - redis
+
   payment-service:
     build:
       context: ../backend/payment-service
@@ -97,10 +123,14 @@ services:
     build:
       context: ../backend/notify-service
       dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8003:8000"
     volumes:
       - ../backend/notify-service:/app
     depends_on:
-      - redis
+      - db
 
   analytics-service:
     build:
