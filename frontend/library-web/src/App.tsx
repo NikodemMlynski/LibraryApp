@@ -8,7 +8,7 @@ import DashboardPage from './pages/librarian/DashboardPage';
 import ProfilePage from './pages/librarian/ProfilePage';
 import BooksPage from './pages/librarian/BooksPage';
 import LoansPage from './pages/librarian/LoansPage';
-
+import Bookflow from "./assets/bookflow.png"
 // Prosty komponent wywołujący logowanie
 const SignInPage = () => {
   const auth = useAuth();
@@ -22,9 +22,9 @@ const SignInPage = () => {
       )}
       <button 
         onClick={() => void auth.signinRedirect()} 
-        className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700 transition"
+        className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700 transition cursor-pointer"
       >
-        Zaloguj się przez Keycloak
+        Zaloguj się do systemu
       </button>
     </div>
   );

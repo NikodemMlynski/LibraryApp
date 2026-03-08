@@ -27,8 +27,8 @@ export const Book: React.FC<BookProps> = ({ book, onEdit }) => {
   return (
     <Card className="flex flex-col h-full hover:shadow-lg transition-shadow duration-200 border border-gray-100 bg-white overflow-hidden">
       {book.coverImageUrl ? (
-        <div className="w-full h-48 bg-gray-100 relative border-b border-gray-100">
-          <img src={book.coverImageUrl} alt={`Cover for ${book.title}`} className="object-cover w-full h-full" />
+        <div className="w-full h-64 bg-gray-100 relative border-b border-gray-100">
+          <img src={book.coverImageUrl} alt={`Cover for ${book.title}`} className="object-contain w-full h-full" />
         </div>
       ) : (
         <div className="w-full h-48 bg-gray-50 flex items-center justify-center border-b border-gray-100">

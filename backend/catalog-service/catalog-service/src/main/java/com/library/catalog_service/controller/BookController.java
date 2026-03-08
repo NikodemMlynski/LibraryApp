@@ -106,7 +106,12 @@ public class BookController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('librarian') or hasRole('admin')")
     public ResponseEntity<Void> deleteBook(@PathVariable Long id) {
-        if (bookRepository.existsById(id)) {
+        Optional<Book> optionalBook = bookRepository.findById(id);
+        if (optionalBook.isPresent()) {
+            Book book = optionalBook.get();
+            if (book.getCoverImageUrl() != null) {
+                s3Service.deleteFile(book.getCoverImageUrl());
+            }
             bookRepository.deleteById(id);
             return ResponseEntity.noContent().build();
         } else {
