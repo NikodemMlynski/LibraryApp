@@ -19,5 +19,12 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: http://keycloak:8080/auth/realms/library-system/protocol/openid-connect/certs
+aws:
+  region: ${AWS_REGION}
+  s3:
+    bucket: ${AWS_BUCKET_NAME}
+  credentials:
+    access-key: ${AWS_ACCESS_KEY}
+    secret-key: ${AWS_SECRET_KEY}
 server:
   port: 8081

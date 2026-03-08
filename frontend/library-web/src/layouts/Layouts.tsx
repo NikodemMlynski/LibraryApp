@@ -2,7 +2,7 @@
 import { Outlet, Navigate, Link } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import { getUserRoles } from "../utils/auth";
-
+import Bookflow from "../assets/bookflow.png"
 // --- LAYOUT PUBLICZNY (Logowanie) ---
 export const AuthLayout = () => {
   const auth = useAuth();
@@ -28,8 +28,10 @@ export const AuthLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md w-96 text-center">
-        <h1 className="text-2xl font-bold mb-6 text-gray-800">System Biblioteczny</h1>
+      <div className="bg-white p-8 rounded-lg shadow-md w-[450px] text-center">
+        <div className="flex justify-center mb-4">
+          <img src={Bookflow} alt="Logo" className="" />
+        </div>
         {/* Tu wpadną dzieci np. widok Signin */}
         <Outlet /> 
       </div>
@@ -44,7 +46,7 @@ export const RootLayout = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Bardzo prosty Sidebar */}
-      <aside className="w-64 bg-gray-800 text-white flex flex-col">
+      <aside className="w- bg-gray-800 text-white flex flex-col">
         <div className="p-4 text-xl font-bold border-b border-gray-700">
           Witaj, {auth.user?.profile.preferred_username}
         </div>

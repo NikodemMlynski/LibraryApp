@@ -25,13 +25,15 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.1
+    env_file:             # <--- DODAJEMY TO
+      - .env              # <---
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://db:5432/library_db
-      KC_DB_USERNAME: library_user
-      KC_DB_PASSWORD: library_password
+      KC_DB_URL: ${KEYCLOAK_DB_URL}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       KC_HTTP_RELATIVE_PATH: /auth
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "false"
@@ -42,9 +44,6 @@ services:
       - "8080:8080"
     volumes:
       - ../backend/identity-service/realm-export.json:/opt/keycloak/data/import/realm.json
-    depends_on:
-      db:
-        condition: service_healthy
 
   nginx:
     image: nginx:alpine
@@ -76,6 +75,35 @@ services:
     build:
       context: ../backend/lending-service
       dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8002:8000" # Zostawiamy port 8002 na zewnątrz, żebyś mógł testować prosto z Postmana (localhost:8002)
+    depends_on:
+      - db
+      - keycloak
+      - catalog-service
+
+  lending-celery-worker:
+    build:
+      context: ../backend/lending-service
+      dockerfile: Dockerfile
+    command: celery -A lending_project worker -l info
+    env_file:
+      - .env
+    volumes:
+      - ../backend/lending-service:/app
+    depends_on:
+      - db
+      - redis
+
+  lending-celery-beat:
+    build:
+      context: ../backend/lending-service
+      dockerfile: Dockerfile
+    command: celery -A lending_project beat -l info
+    env_file:
+      - .env
     volumes:
       - ../backend/lending-service:/app
     depends_on:
@@ -95,10 +123,14 @@ services:
     build:
       context: ../backend/notify-service
       dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8003:8000"
     volumes:
       - ../backend/notify-service:/app
     depends_on:
-      - redis
+      - db
 
   analytics-service:
     build:

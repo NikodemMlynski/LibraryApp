@@ -4,7 +4,9 @@ import App from './App.tsx'
 import './index.css'
 import { AuthProvider } from 'react-oidc-context'
 import { WebStorageStateStore } from 'oidc-client-ts'
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 
+const queryClient = new QueryClient();
 // Konfiguracja Keycloaka
 const oidcConfig = {
   authority: "http://localhost/auth/realms/library-system", // Adres Twojego Realmu
@@ -19,9 +21,11 @@ const oidcConfig = {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* TUTAJ JEST MAGIA: AuthProvider musi owijać <App /> */}
+    <QueryClientProvider client={queryClient}>
+
     <AuthProvider {...oidcConfig}>
       <App />
     </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>,
 )
