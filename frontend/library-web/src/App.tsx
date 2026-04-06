@@ -4,7 +4,15 @@ import { useAuth } from 'react-oidc-context';
 import { AuthLayout, RootLayout } from './layouts/Layouts';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { getUserRoles } from './utils/auth';
-
+import DashboardPage from './pages/librarian/DashboardPage';
+import ProfilePage from './pages/librarian/ProfilePage';
+import BooksPage from './pages/librarian/BooksPage';
+import LoansPage from './pages/librarian/LoansPage';
+import PaymentPage from './pages/librarian/PaymentPage';
+import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminLogsPage from './pages/admin/AdminLogsPage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 // Prosty komponent wywołujący logowanie
 const SignInPage = () => {
   const auth = useAuth();
@@ -18,9 +26,9 @@ const SignInPage = () => {
       )}
       <button 
         onClick={() => void auth.signinRedirect()} 
-        className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700 transition"
+        className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700 transition cursor-pointer"
       >
-        Zaloguj się przez Keycloak
+        Zaloguj się do systemu
       </button>
     </div>
   );
@@ -62,22 +70,22 @@ const router = createBrowserRouter([
             // 2. Zabezpieczamy ścieżkę /app/admin (tylko ADMIN)
             element: <ProtectedRoute allowedRoles={['admin']} />,
             children: [
-              { index: true, element: <div>dashboard (admin)</div> },
-              { path: 'profile', element: <div>profile (admin)</div> },
-              { path: 'user-management', element: <div>user management (admin)</div> },
-              { path: 'settings', element: <div>settings (admin)</div> },
-              { path: 'logs', element: <div>system logs (admin)</div> }
+              { index: true, element: <AdminDashboardPage /> },
+              { path: 'user-management', element: <AdminUsersPage /> },
+              { path: 'logs', element: <AdminLogsPage /> },
+              { path: 'payments', element: <AdminPaymentsPage /> },
+              { path: 'loans', element: <LoansPage /> }
             ]
           }, 
           {
             path: 'librarian',
-            // 3. Zabezpieczamy ścieżkę /app/librarian (tylko LIBRARIAN)
             element: <ProtectedRoute allowedRoles={['librarian']} />,
             children: [
-              { index: true, element: <div>dashboard (librarian)</div> },
-              { path: 'profile', element: <div>profile (librarian)</div> },
-              { path: 'books', element: <div>books managment</div> },
-              { path: 'loans', element: <div>loans managment</div> }
+              { index: true, element: <DashboardPage /> },
+              { path: 'profile', element: <ProfilePage/> },
+              { path: 'books', element: <BooksPage/> },
+              { path: 'loans', element: <LoansPage/> },
+              { path: 'loans/:id/pay', element: <PaymentPage/> }
             ]
           }
         ]

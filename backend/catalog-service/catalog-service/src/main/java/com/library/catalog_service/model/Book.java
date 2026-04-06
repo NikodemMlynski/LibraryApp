@@ -1,5 +1,7 @@
 package com.library.catalog_service.model;
 
+import java.util.Optional;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -18,13 +20,20 @@ public class Book {
     @Column(unique = true, nullable = false)
     private String isbn;
 
+    @Column(name = "available_copies", nullable = false)
+    private Integer availableCopies = 0;
+
+    @Column(name = "cover_image_url", nullable = false)
+    private String coverImageUrl;
+
     public Book() {
     }
 
-    public Book(String title, String author, String isbn) {
+    public Book(String title, String author, String isbn, Integer availableCopies) {
         this.title = title;
         this.author = author;
         this.isbn = isbn;
+        this.availableCopies = availableCopies;
     }
 
     public Long getId() {
@@ -53,5 +62,21 @@ public class Book {
 
     public void setIsbn(String isbn) {
         this.isbn = isbn;
+    }
+
+    public void setAvailableCopies(Integer availableCopies) {
+        this.availableCopies = availableCopies;
+    }
+
+    public void setCoverImageUrl(String coverImageUrl) {
+        this.coverImageUrl = coverImageUrl;
+    }
+
+    public Integer getAvailableCopies() {
+        return availableCopies;
+    }
+
+    public String getCoverImageUrl() {
+        return coverImageUrl;
     }
 }

@@ -14,7 +14,11 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+import os
+from dotenv import load_dotenv
 
+# Ładowanie zmiennych z pliku .env (zakładając, że odpalasz lokalnie, a w Dockerze zrobi to sam docker-compose)
+load_dotenv(os.path.join(BASE_DIR, '../../infrastructure/.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -37,7 +41,18 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'rest_framework',
+    'loans',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'loans.authentication.KeycloakJWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated', # Domyślnie każdy endpoint wymaga bycia zalogowanym
+    )
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -73,9 +88,13 @@ WSGI_APPLICATION = "lending_project.wsgi.application"
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'lending_db', # WAŻNE: Tu nazwa bazy dla tego serwisu!
+        'USER': os.environ.get('LENDING_DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('LENDING_DB_PASSWORD', 'WnraEmtAtn4S2411'),
+        'HOST': os.environ.get('LENDING_DB_URL', 'localhost'),
+        'PORT': os.environ.get('LENDING_DB_PORT', '5432'),
     }
 }
 
@@ -104,7 +123,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Europe/Warsaw"
 
 USE_I18N = True
 
@@ -115,3 +134,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+
+# Celery Beat Schedule
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'check-overdue-loans-every-night': {
+        'task': 'loans.tasks.check_overdue_loans',
+        'schedule': crontab(hour=21, minute=57),
+    },
+}
