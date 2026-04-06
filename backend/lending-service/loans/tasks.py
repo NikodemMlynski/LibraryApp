@@ -8,16 +8,28 @@ from django.contrib.auth.models import User
 @shared_task
 def check_overdue_loans():
     print(f"[{now()}] URUCHAMIANIE ZADANIA check_overdue_loans...")
-    # Pobierz z bazy wszystkie obiekty Loan, gdzie status == 'ACTIVE' oraz due_date jest mniejsze niż now().
-    overdue_loans = Loan.objects.filter(status='ACTIVE', due_date__lt=now())
+    # Pobierz z bazy wszystkie obiekty Loan, gdzie status to 'ACTIVE' lub 'OVERDUE' oraz due_date jest mniejsze niż now().
+    overdue_loans = Loan.objects.filter(status__in=['ACTIVE', 'OVERDUE'], due_date__lt=now())
     print(f"[{now()}] Znaleziono {overdue_loans.count()} przeterminowanych wypożyczeń w bazie danych.")
     count = 0
     
+    from decimal import Decimal
+
     for loan in overdue_loans:
-        # Zmień ich status na 'OVERDUE' i zapisz w bazie.
+        days_overdue = (now() - loan.due_date).days
+        if days_overdue > 0:
+            loan.penalty_amount = Decimal('2.00') + (Decimal(str(days_overdue)) * Decimal('0.50'))
         loan.status = 'OVERDUE'
         loan.save()
         count += 1
+        
+        from .audit import send_audit_log
+        send_audit_log(
+            action_type="LOAN_OVERDUE_MARKED",
+            actor_id="system-celery",
+            visibility="LIBRARIAN",
+            metadata={"loan_id": loan.id, "days_overdue": days_overdue, "message": f"System oznaczył wypożyczenie {loan.id} jako przetrzymane."}
+        )
         
         # Dla każdego z nich wyślij żądanie POST do notify-service
         user_email = ""

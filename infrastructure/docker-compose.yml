@@ -6,23 +6,6 @@ services:
     ports:
       - "6379:6379"
 
-  db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: library_user
-      POSTGRES_PASSWORD: library_password
-      POSTGRES_DB: library_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    # Dodajemy Healthcheck
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U library_user -d library_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.1
     env_file:             # <--- DODAJEMY TO
@@ -80,7 +63,6 @@ services:
     ports:
       - "8002:8000" # Zostawiamy port 8002 na zewnątrz, żebyś mógł testować prosto z Postmana (localhost:8002)
     depends_on:
-      - db
       - keycloak
       - catalog-service
 
@@ -94,7 +76,6 @@ services:
     volumes:
       - ../backend/lending-service:/app
     depends_on:
-      - db
       - redis
 
   lending-celery-beat:
@@ -107,17 +88,14 @@ services:
     volumes:
       - ../backend/lending-service:/app
     depends_on:
-      - db
       - redis
 
   payment-service:
     build:
-      context: ../backend/payment-service
+      context: ../backend/payment-service/payment-service
       dockerfile: Dockerfile
-    volumes:
-      - ../backend/payment-service:/app
-    depends_on:
-      - db
+    env_file:
+      - .env
 
   notify-service:
     build:
@@ -129,27 +107,22 @@ services:
       - "8003:8000"
     volumes:
       - ../backend/notify-service:/app
-    depends_on:
-      - db
 
   analytics-service:
     build:
       context: ../backend/analytics-service
       dockerfile: Dockerfile
+    env_file:
+      - .env
     volumes:
       - ../backend/analytics-service:/app
-    depends_on:
-      - db
 
-  # Catalog Service (Java) zakomentowany na później
   catalog-service:
     build:
       context: ../backend/catalog-service/catalog-service
       dockerfile: Dockerfile
     env_file:
       - .env
-    depends_on:
-      - db
 
 volumes:
   postgres_data:

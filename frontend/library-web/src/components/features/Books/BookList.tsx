@@ -5,7 +5,7 @@ import { BookFormModal } from './BookFormModal';
 
 export const BookList = () => {
   const [page, setPage] = useState(0);
-  const { data: paginatedBooks, isLoading, isError, error } = useBooks(page, 10);
+  const { data: paginatedBooks, isLoading, isError, error } = useBooks(page, 8);
   const [bookToEdit, setBookToEdit] = useState<BookType | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
 

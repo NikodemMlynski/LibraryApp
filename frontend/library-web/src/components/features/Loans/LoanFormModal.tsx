@@ -9,139 +9,242 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useCreateLibrarianLoan, useLibrarianUsers } from '@/hooks/useLoans';
+import { Input } from '@/components/ui/input';
+import { useCreateLibrarianLoan, useLibrarianUsers, useConfirmLoanPayment } from '@/hooks/useLoans';
 import { useBooks } from '@/hooks/useBooks';
+import { CheckoutFlow } from './CheckoutFlow';
+import { Search } from 'lucide-react';
 
 interface LoanFormModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// Prosty hook do opóźniania zapytań (Debounce)
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export const LoanFormModal: React.FC<LoanFormModalProps> = ({ isOpen, onClose }) => {
-  const [userId, setUserId] = useState('');
-  const [bookId, setBookId] = useState('');
+  // Stany formularza
   const [dueDate, setDueDate] = useState('');
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [createdLoanId, setCreatedLoanId] = useState<number | null>(null);
 
-  const { data: users } = useLibrarianUsers();
-  const { data: paginatedBooks } = useBooks(0, 1000); // Fetch a large page for dropdowns
+  // Stany dla wyszukiwarki Użytkowników
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const debouncedUserSearch = useDebounce(userSearchTerm, 300);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+
+  // Stany dla wyszukiwarki Książek
+  const [bookSearchTerm, setBookSearchTerm] = useState('');
+  const debouncedBookSearch = useDebounce(bookSearchTerm, 300);
+  const [selectedBook, setSelectedBook] = useState<any | null>(null);
+  const [isBookDropdownOpen, setIsBookDropdownOpen] = useState(false);
+
+  // Fetchowanie danych (tylko małe porcje po 5-10 wyników!)
+  const { data: users, isLoading: isLoadingUsers } = useLibrarianUsers(debouncedUserSearch);
+  const { data: paginatedBooks, isLoading: isLoadingBooks } = useBooks(0, 10, debouncedBookSearch);
   const books = paginatedBooks?.content || [];
-  const createLoan = useCreateLibrarianLoan();
 
-  // Reset form when modal opens
+  const createLoan = useCreateLibrarianLoan();
+  const confirmPayment = useConfirmLoanPayment();
+
+  // Resetowanie formularza przy otwarciu/zamknięciu
   useEffect(() => {
     if (isOpen) {
-      setUserId('');
-      setBookId('');
       setDueDate('');
+      setClientSecret(null);
+      setCreatedLoanId(null);
+      setUserSearchTerm('');
+      setSelectedUser(null);
+      setBookSearchTerm('');
+      setSelectedBook(null);
     }
   }, [isOpen]);
 
-  const selectedBook = books?.find(b => b.id.toString() === bookId);
   const isBookUnavailable = selectedBook ? selectedBook.availableCopies <= 0 : false;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isBookUnavailable) {
-      alert("This book is currently unavailable.");
-      return;
-    }
+    if (isBookUnavailable || !selectedUser || !selectedBook) return;
     
-    // Convert dueDate to ISO string or let the backend handle the format
-    // the backend expects a standard string or handles empty
-    const loanData = { user_id: userId, book_id: bookId, due_date: dueDate || undefined };
-    createLoan.mutate(loanData, { onSuccess: onClose });
+    const loanData = { 
+      user_id: selectedUser.username, // używamy username tak jak w pierwotnym kodzie
+      book_id: selectedBook.id.toString(), 
+      due_date: dueDate || undefined 
+    };
+    
+    createLoan.mutate(loanData, { 
+      onSuccess: (data: any) => {
+        if (data?.clientSecret) {
+          setClientSecret(data.clientSecret);
+          setCreatedLoanId(data.id);
+        } else {
+          onClose(); 
+        }
+      } 
+    });
   };
 
-  const isPending = createLoan.isPending;
-  const isError = createLoan.isError;
-  const error = createLoan.error;
+  const handlePaymentSuccess = () => {
+    if (createdLoanId) {
+      confirmPayment.mutate(createdLoanId, { onSuccess: onClose });
+    } else {
+      onClose();
+    }
+  };
+
+  if (clientSecret) {
+    return (
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !createLoan.isPending) onClose(); }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <CheckoutFlow clientSecret={clientSecret} onSuccess={handlePaymentSuccess} onCancel={onClose} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isPending) onClose(); }}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !createLoan.isPending) onClose(); }}>
+      <DialogContent className="sm:max-w-[500px] overflow-visible">
         <DialogHeader>
           <DialogTitle>Create New Loan</DialogTitle>
           <DialogDescription>
-            Select a user and a book to create a new loan.
+            Search and select a user and a book.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit} className="overflow-visible">
+          <div className="grid gap-6 py-4">
             
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="user" className="text-right">
-                User
-              </Label>
-              <select
-                id="user"
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                required
-              >
-                <option value="" disabled>Select a user</option>
-                {users?.map(user => (
-                  <option key={user.id} value={user.username}>
-                    {user.username}
-                  </option>
-                ))}
-              </select>
+            {/* AUTOUZUPEŁNIANIE: Użytkownik */}
+            <div className="relative">
+              <Label className="mb-2 block">Find User</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Type username..."
+                  value={userSearchTerm}
+                  onChange={(e) => {
+                    setUserSearchTerm(e.target.value);
+                    setSelectedUser(null);
+                    setIsUserDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsUserDropdownOpen(true)}
+                  className="pl-9"
+                />
+              </div>
+              {isUserDropdownOpen && userSearchTerm && (
+                <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-auto">
+                  {isLoadingUsers ? (
+                    <li className="p-3 text-sm text-gray-500 text-center">Searching...</li>
+                  ) : users?.length === 0 ? (
+                    <li className="p-3 text-sm text-gray-500 text-center">No users found</li>
+                  ) : (
+                    users?.map(user => (
+                      <li 
+                        key={user.id} 
+                        className="p-3 text-sm hover:bg-blue-50 cursor-pointer border-b last:border-0"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setUserSearchTerm(user.username);
+                          setIsUserDropdownOpen(false);
+                        }}
+                      >
+                        <span className="font-medium text-gray-900">{user.username}</span>
+                        {user.email && <span className="block text-xs text-gray-500">{user.email}</span>}
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="book" className="text-right">
-                Book
-              </Label>
-              <select
-                id="book"
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={bookId}
-                onChange={(e) => setBookId(e.target.value)}
-                required
-              >
-                <option value="" disabled>Select a book</option>
-                {books?.map(book => {
-                  const unavailable = book.availableCopies <= 0;
-                  return (
-                    <option key={book.id} value={book.id} className={unavailable ? 'text-red-500' : ''}>
-                      {book.title} - {book.author} {unavailable ? '(Unavailable)' : `(${book.availableCopies} available)`}
-                    </option>
-                  );
-                })}
-              </select>
+            {/* AUTOUZUPEŁNIANIE: Książka */}
+            <div className="relative">
+              <Label className="mb-2 block">Find Book</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Type title or author..."
+                  value={bookSearchTerm}
+                  onChange={(e) => {
+                    setBookSearchTerm(e.target.value);
+                    setSelectedBook(null);
+                    setIsBookDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsBookDropdownOpen(true)}
+                  className={`pl-9 ${isBookUnavailable ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                />
+              </div>
+              {isBookDropdownOpen && bookSearchTerm && (
+                <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-auto">
+                  {isLoadingBooks ? (
+                    <li className="p-3 text-sm text-gray-500 text-center">Searching...</li>
+                  ) : books.length === 0 ? (
+                    <li className="p-3 text-sm text-gray-500 text-center">No books found</li>
+                  ) : (
+                    books.map(book => {
+                      const unavailable = book.availableCopies <= 0;
+                      return (
+                        <li 
+                          key={book.id} 
+                          className={`p-3 text-sm hover:bg-blue-50 cursor-pointer border-b last:border-0 ${unavailable ? 'opacity-50 bg-gray-50' : ''}`}
+                          onClick={() => {
+                            if (!unavailable) {
+                              setSelectedBook(book);
+                              setBookSearchTerm(`${book.title} - ${book.author}`);
+                              setIsBookDropdownOpen(false);
+                            }
+                          }}
+                        >
+                          <span className="font-medium text-gray-900 block truncate">{book.title}</span>
+                          <span className="text-xs text-gray-500">{book.author}</span>
+                          <span className={`text-xs float-right font-medium ${unavailable ? 'text-red-500' : 'text-green-600'}`}>
+                            {unavailable ? 'Out of stock' : `${book.availableCopies} left`}
+                          </span>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              )}
+              {isBookUnavailable && (
+                <span className="text-xs text-red-500 mt-1 block">This book is currently out of stock.</span>
+              )}
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="dueDate" className="text-right">
-                Return Date
-              </Label>
-              <input
+            {/* DATA ZWROTU */}
+            <div>
+              <Label htmlFor="dueDate" className="mb-2 block">Return Date (Optional)</Label>
+              <Input
                 id="dueDate"
                 type="datetime-local"
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
-            
-            {isBookUnavailable && (
-               <div className="text-red-500 text-sm mt-2 text-center">
-                 Cannot create loan: Selected book has 0 available copies.
-               </div>
-            )}
 
           </div>
-          {isError && (
+
+          {createLoan.isError && (
              <div className="text-red-500 text-sm mb-4">
-               Error: {(error as any)?.message || 'An error occurred'}
+               Error: {(createLoan.error as any)?.message || 'An error occurred'}
              </div>
           )}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+          
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={onClose} disabled={createLoan.isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending || isBookUnavailable || !userId || !bookId}>
-              {isPending ? 'Saving...' : 'Create Loan'}
+            <Button type="submit" disabled={createLoan.isPending || isBookUnavailable || !selectedUser || !selectedBook}>
+              {createLoan.isPending ? 'Saving...' : 'Create Loan'}
             </Button>
           </DialogFooter>
         </form>

@@ -39,7 +39,16 @@ export const fetchWithAuth = async (url: string, options: RequestInit, token?: s
   const response = await fetch(url, { ...options, headers });
   
   if (!response.ok) {
-    throw new Error(`HTTP Error: ${response.status}`);
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch {
+      errorData = null;
+    }
+    const error = new Error(`HTTP Error: ${response.status}`) as any;
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
   }
   
   if (response.status === 204) {
@@ -49,13 +58,19 @@ export const fetchWithAuth = async (url: string, options: RequestInit, token?: s
   return response.json();
 };
 
-export const useBooks = (page: number = 0, size: number = 10) => {
+export const useBooks = (page: number = 0, size: number = 8, search?: string) => {
   const auth = useAuth();
   const token = auth.user?.access_token;
 
+  // Dynamiczne budowanie URL
+  let url = `${API_URL}?page=${page}&size=${size}`;
+  if (search) {
+    url += `&search=${encodeURIComponent(search)}`;
+  }
+
   return useQuery<PaginatedBooks, Error>({
-    queryKey: ['books', page, size],
-    queryFn: () => fetchWithAuth(`${API_URL}?page=${page}&size=${size}`, { method: 'GET' }, token),
+    queryKey: ['books', page, size, search], // Zależność od search
+    queryFn: () => fetchWithAuth(url, { method: 'GET' }, token),
     enabled: !!token, 
   });
 };

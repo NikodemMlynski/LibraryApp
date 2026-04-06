@@ -1,22 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLibrarianLoans, useUpdateLibrarianLoan, type Loan } from '@/hooks/useLoans';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 export const LoanList = () => {
-  const [status, setStatus] = useState('ALL');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialStatus = searchParams.get('status') || 'ALL';
+  const [status, setStatus] = useState(initialStatus);
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, error } = useLibrarianLoans(status, page);
   const updateLoan = useUpdateLibrarianLoan();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam && statusParam !== status) {
+      setStatus(statusParam);
+      setPage(1);
+    }
+  }, [searchParams]);
 
   const handleReturn = (loan: Loan) => {
     if (window.confirm('Are you sure you want to mark this book as returned?')) {
-      updateLoan.mutate({ id: loan.id, action: 'return' });
+      updateLoan.mutate({ id: loan.id, action: 'return' }, {
+        onError: (err: any) => {
+          if (err.status === 402) {
+            navigate(`/app/librarian/loans/${loan.id}/pay`);
+          } else {
+            alert(`Error returning book: ${err?.message}`);
+          }
+        }
+      });
     }
   };
 
+
+
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setStatus(e.target.value);
+    const newStatus = e.target.value;
+    setStatus(newStatus);
+    setSearchParams({ status: newStatus });
     setPage(1); // Reset to first page on filter change
   };
 
@@ -92,6 +116,16 @@ export const LoanList = () => {
                         Mark Returned
                       </Button>
                     )}
+                    {loan.status === 'PENDING_PAYMENT' && (
+                      <Button 
+                        size="sm" 
+                        variant="secondary"
+                        className="ml-2"
+                        onClick={() => navigate(`/app/librarian/loans/${loan.id}/pay`)}
+                      >
+                        Opłać
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -123,6 +157,8 @@ export const LoanList = () => {
             </Button>
          </div>
       </div>
+
+
     </div>
   );
 };

@@ -9,7 +9,7 @@ export interface Loan {
   borrow_date: string;
   due_date: string;
   return_date: string | null;
-  status: 'ACTIVE' | 'RETURNED' | 'OVERDUE';
+  status: 'ACTIVE' | 'RETURNED' | 'OVERDUE' | 'PENDING_PAYMENT';
 }
 
 export interface User {
@@ -40,13 +40,18 @@ export const useLibrarianLoans = (status: string, page: number) => {
   });
 };
 
-export const useLibrarianUsers = () => {
+export const useLibrarianUsers = (search?: string) => {
   const auth = useAuth();
   const token = auth.user?.access_token;
 
+  let url = `${API_URL}/users/`;
+  if (search) {
+    url += `?search=${encodeURIComponent(search)}`;
+  }
+
   return useQuery<User[], Error>({
-    queryKey: ['librarian-users'],
-    queryFn: () => fetchWithAuth(`${API_URL}/users/`, { method: 'GET' }, token),
+    queryKey: ['librarian-users', search],
+    queryFn: () => fetchWithAuth(url, { method: 'GET' }, token),
     enabled: !!token, 
   });
 };
@@ -102,5 +107,36 @@ export const useUpdateLibrarianLoan = () => {
       // Invalidate books to reflect available copies change if returned
       queryClient.invalidateQueries({ queryKey: ['books'] });
     },
+  });
+};
+
+export const useConfirmLoanPayment = () => {
+  const queryClient = useQueryClient();
+  const auth = useAuth();
+  const token = auth.user?.access_token;
+
+  return useMutation({
+    mutationFn: (loanId: number) => {
+      return fetchWithAuth(`${API_URL}/loans/${loanId}/confirm-payment/`, { 
+        method: 'POST' 
+      }, token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['librarian-loans'] });
+      queryClient.invalidateQueries({ queryKey: ['user-loans'] });
+    },
+  });
+};
+
+export const useInitLoanPayment = () => {
+  const auth = useAuth();
+  const token = auth.user?.access_token;
+
+  return useMutation({
+    mutationFn: (loanId: number) => {
+      return fetchWithAuth(`${API_URL}/loans/${loanId}/init-payment/`, { 
+        method: 'POST' 
+      }, token);
+    }
   });
 };
