@@ -16,13 +16,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Book color={color} size={size} />,
         }}
       />
-      <Tabs.Screen
-        name="borrow"
-        options={{
-          title: 'Borrow',
-          tabBarIcon: ({ color, size }) => <CheckCircle color={color} size={size} />,
-        }}
-      />
+
       <Tabs.Screen
         name="loans"
         options={{

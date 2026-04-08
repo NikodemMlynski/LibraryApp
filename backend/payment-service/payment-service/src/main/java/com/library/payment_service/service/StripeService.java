@@ -86,32 +86,33 @@ public class StripeService {
                         fee.setPaidAt(java.time.LocalDateTime.now());
                         paymentRepository.save(fee);
                         System.out.println("Zaktualizowano transakcję " + fee.getId() + " na PAID w bazie danych!");
-                        
+
                         try {
                             RestTemplate restTemplate = new RestTemplate();
                             HttpHeaders headers = new HttpHeaders();
                             headers.setContentType(MediaType.APPLICATION_JSON);
-                            
+
                             Map<String, Object> metadata = new HashMap<>();
                             metadata.put("loan_id", fee.getLoanId());
                             metadata.put("amount", fee.getAmount());
                             metadata.put("message", "Zaksięgowano płatność za książkę: " + fee.getBookTitle());
-                            
-                            String actionType = fee.getAmount().compareTo(new BigDecimal("2.00")) > 0 
-                                ? "PAYMENT_PENALTY_SUCCESS" : "PAYMENT_FEE_SUCCESS";
-                            
+
+                            String actionType = fee.getAmount().compareTo(new BigDecimal("2.00")) > 0
+                                    ? "PAYMENT_PENALTY_SUCCESS"
+                                    : "PAYMENT_FEE_SUCCESS";
+
                             Map<String, Object> requestBody = new HashMap<>();
                             requestBody.put("action_type", actionType);
                             requestBody.put("actor_id", fee.getUserId() != null ? fee.getUserId() : "system");
                             requestBody.put("visibility", "ADMIN");
                             requestBody.put("metadata", metadata);
-                            
+
                             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
                             restTemplate.postForLocation("http://analytics-service:8000/internal/logs", request);
                         } catch (Exception ex) {
                             System.out.println("Błąd wysyłania logu do analytics-service: " + ex.getMessage());
                         }
-                        
+
                     }, () -> {
                         System.out.println("UWAGA: Nie znaleziono transakcji w bazie dla ID: " + intent.getId());
                     });
@@ -123,23 +124,23 @@ public class StripeService {
                     paymentRepository.findByStripePaymentIntentId(intent.getId()).ifPresent(fee -> {
                         fee.setStatus("FAILED");
                         paymentRepository.save(fee);
-                        
+
                         try {
                             RestTemplate restTemplate = new RestTemplate();
                             HttpHeaders headers = new HttpHeaders();
                             headers.setContentType(MediaType.APPLICATION_JSON);
-                            
+
                             Map<String, Object> metadata = new HashMap<>();
                             metadata.put("loan_id", fee.getLoanId());
                             metadata.put("amount", fee.getAmount());
                             metadata.put("message", "Odrzucono próbę wpłaty dla książki: " + fee.getBookTitle());
-                            
+
                             Map<String, Object> requestBody = new HashMap<>();
                             requestBody.put("action_type", "PAYMENT_FAILED");
                             requestBody.put("actor_id", fee.getUserId() != null ? fee.getUserId() : "system");
                             requestBody.put("visibility", "ADMIN");
                             requestBody.put("metadata", metadata);
-                            
+
                             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
                             restTemplate.postForLocation("http://analytics-service:8000/internal/logs", request);
                         } catch (Exception ex) {
@@ -158,6 +159,10 @@ public class StripeService {
 
     public java.util.List<PaymentFee> getAllPaidTransactions() {
         return paymentRepository.findByStatusOrderByPaidAtDesc("PAID");
+    }
+
+    public java.util.List<PaymentFee> getUserPaidTransactions(String userId) {
+        return paymentRepository.findByUserIdAndStatusOrderByPaidAtDesc(userId, "PAID");
     }
 
 }
