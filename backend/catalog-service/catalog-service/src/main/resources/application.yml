@@ -28,3 +28,6 @@ aws:
     secret-key: ${AWS_SECRET_KEY}
 server:
   port: 8081
+logging:
+  level:
+    org.springframework.security: TRACE

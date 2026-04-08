@@ -45,12 +45,11 @@ public class PaymentController {
             // "sub" w tokenie to UUID usera z Keycloaka
             String userId = jwt.getClaimAsString("sub");
             String clientSecret = stripeService.createPaymentIntent(
-                request.getLoanId(), 
-                userId, 
-                request.getAmount(), 
-                request.getUserName(), 
-                request.getBookTitle()
-            );
+                    request.getLoanId(),
+                    userId,
+                    request.getAmount(),
+                    request.getUserName(),
+                    request.getBookTitle());
 
             return ResponseEntity.ok(Map.of("clientSecret", clientSecret));
         } catch (Exception e) {
@@ -67,5 +66,12 @@ public class PaymentController {
     ) {
         stripeService.handleWebhook(payload, sigHeader);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/my-transactions")
+    public ResponseEntity<?> getMyTransactions(@AuthenticationPrincipal Jwt jwt) {
+        // "sub" to UUID zalogowanego czytelnika z Keycloaka
+        String userId = jwt.getClaimAsString("sub");
+        return ResponseEntity.ok(stripeService.getUserPaidTransactions(userId));
     }
 }

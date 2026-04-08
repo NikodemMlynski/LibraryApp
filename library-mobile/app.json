@@ -39,7 +39,15 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.library.app",
+          "enableApplePay": false
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

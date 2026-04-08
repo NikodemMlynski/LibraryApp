@@ -7,5 +7,8 @@ import java.util.List;
 
 public interface PaymentFeeRepository extends JpaRepository<PaymentFee, Long> {
     Optional<PaymentFee> findByStripePaymentIntentId(String intentId);
+
     List<PaymentFee> findByStatusOrderByPaidAtDesc(String status);
+
+    List<PaymentFee> findByUserIdAndStatusOrderByPaidAtDesc(String userId, String status);
 }

@@ -9,6 +9,7 @@ from .serializers import LoanSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from django.contrib.auth.models import User
+from django.db.models import Case, When, Value, IntegerField
 from .audit import send_audit_log
 
 CATALOG_SERVICE_URL = "http://catalog-service:8081/api/catalog/books"
@@ -41,9 +42,19 @@ class BorrowBookView(APIView):
         book_data['availableCopies'] -= 1
         requests.put(f"{CATALOG_SERVICE_URL}/{book_id}", data=book_data, headers=headers)
 
+        # --- ZMIANA TUTAJ: Przygotowanie pełnego payloadu dla Payment Service ---
+        book_title = book_data.get('title', f"Książka #{book_id}")
+        payment_payload = {
+            "loanId": loan.id,
+            "amount": 2.00,
+            "userName": user_id,
+            "bookTitle": book_title
+        }
+
         client_secret = None
         try:
-            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json={"loanId": loan.id, "amount": 2.00}, headers=headers, timeout=5)
+            # Używamy payment_payload zamiast twardo wpisanego słownika
+            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json=payment_payload, headers=headers, timeout=5)
             if payment_res.status_code == 200:
                 if 'application/json' in payment_res.headers.get('Content-Type', ''):
                     client_secret = payment_res.json().get('clientSecret')
@@ -63,7 +74,6 @@ class BorrowBookView(APIView):
         )
         
         return Response(data, status=status.HTTP_201_CREATED)
-
 class ReturnBookView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -130,9 +140,43 @@ class UserLoansView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
         user_id = request.user.username
+        status_param = request.query_params.get('status', 'ALL')
+        
         loans = Loan.objects.filter(user_id=user_id)
-        serializer = LoanSerializer(loans, many=True)
-        return Response(serializer.data)
+        
+        if status_param and status_param != 'ALL':
+            loans = loans.filter(status=status_param).order_by('-borrow_date')
+        else:
+            loans = loans.annotate(
+                status_order=Case(
+                    When(status='OVERDUE', then=Value(1)),
+                    When(status='ACTIVE', then=Value(2)),
+                    When(status='PENDING_PAYMENT', then=Value(3)),
+                    default=Value(4),
+                    output_field=IntegerField(),
+                )
+            ).order_by('status_order', '-borrow_date')
+            
+        paginator = StandardResultsSetPagination()
+        paginated_loans = paginator.paginate_queryset(loans, request)
+        serializer = LoanSerializer(paginated_loans, many=True)
+        
+        auth_header = request.headers.get('Authorization')
+        headers = {'Authorization': auth_header} if auth_header else {}
+        
+        for item in serializer.data:
+            book_id = item['book_id']
+            try:
+                res = requests.get(f"{CATALOG_SERVICE_URL}/{book_id}", headers=headers, timeout=2)
+                if res.status_code == 200:
+                    item['book_title'] = res.json().get('title', f'Book {book_id}')
+                else:
+                    item['book_title'] = f'Book {book_id}'
+            except:
+                item['book_title'] = f'Book {book_id}'
+                
+        return paginator.get_paginated_response(serializer.data)
+
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -191,9 +235,18 @@ class LibrarianCreateLoanView(APIView):
         book_data['availableCopies'] -= 1
         requests.put(f"{CATALOG_SERVICE_URL}/{book_id}", data=book_data, headers=headers)
 
+        # --- ZMIANA TUTAJ: Przygotowanie pełnego payloadu dla Payment Service ---
+        book_title = book_data.get('title', f"Książka #{book_id}")
+        payment_payload = {
+            "loanId": loan.id,
+            "amount": 2.00,
+            "userName": user_id,
+            "bookTitle": book_title
+        }
+
         client_secret = None
         try:
-            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json={"loanId": loan.id, "amount": 2.00}, headers=headers, timeout=5)
+            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json=payment_payload, headers=headers, timeout=5)
             if payment_res.status_code == 200:
                 if 'application/json' in payment_res.headers.get('Content-Type', ''):
                     client_secret = payment_res.json().get('clientSecret')
@@ -419,3 +472,143 @@ class InitPaymentView(APIView):
         except Exception as e:
             print("Payment service error:", e)
             return Response({"error": "Payment service unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+class ReaderUpdateLoanView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, loan_id):
+        user_id = request.user.username
+        try:
+            loan = Loan.objects.get(id=loan_id, user_id=user_id)
+        except Loan.DoesNotExist:
+            return Response({"error": "Loan not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        action = request.data.get('action') 
+        auth_header = request.headers.get('Authorization')
+        headers = {'Authorization': auth_header} if auth_header else {}
+        
+        if action == 'return' and loan.status != 'RETURNED':
+            if loan.status in ['ACTIVE', 'OVERDUE'] and now() > loan.due_date:
+                days_overdue = (now() - loan.due_date).days
+                if days_overdue > 0:
+                    loan.penalty_amount = 2.00 + (days_overdue * 0.50)
+                    loan.status = 'OVERDUE'
+                    loan.save()
+
+            if loan.penalty_amount > 0:
+                return Response({"error": "Payment Required", "requires_payment": True}, status=status.HTTP_402_PAYMENT_REQUIRED)
+                    
+            try:
+                response = requests.get(f"{CATALOG_SERVICE_URL}/{loan.book_id}", headers=headers)
+                if response.status_code == 200:
+                    book_data = response.json()
+                    book_data['availableCopies'] += 1
+                    requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", data=book_data, headers=headers)
+            except requests.exceptions.RequestException:
+                return Response({"error": "Error communicating with Catalog Service"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            loan.return_date = now()
+            is_late = loan.return_date > loan.due_date
+            action_type = "LOAN_RETURNED_LATE" if is_late else "LOAN_RETURNED_ON_TIME"
+            
+            loan.status = 'RETURNED'
+            loan.save()
+            
+            send_audit_log(
+                action_type=action_type, 
+                actor_id=user_id, 
+                visibility="LIBRARIAN", 
+                metadata={"loan_id": loan.id, "book_id": loan.book_id, "message": f"Użytkownik {user_id} dokonał zwrotu (PUT)."}
+            )
+            
+            return Response(LoanSerializer(loan).data)
+            
+        return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReaderInitPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, loan_id):
+        user_id = request.user.username
+        try:
+            loan = Loan.objects.get(id=loan_id, user_id=user_id)
+        except Loan.DoesNotExist:
+            return Response({"error": "Loan not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if loan.status not in ['PENDING_PAYMENT', 'OVERDUE']:
+            return Response({"error": "Dla tego wypożyczenia nie pobiera się opłaty"}, status=status.HTTP_400_BAD_REQUEST)
+
+        amount = 2.00
+        payment_type = 'INITIAL'
+        
+        if loan.status == 'OVERDUE':
+            if loan.penalty_amount <= 0:
+                return Response({"error": "Brak naliczonej kary"}, status=status.HTTP_400_BAD_REQUEST)
+            amount = float(loan.penalty_amount)
+            payment_type = 'PENALTY'
+
+        auth_header = request.headers.get('Authorization')
+        headers = {'Authorization': auth_header} if auth_header else {}
+
+        book_title = "Zarchiwizowana Książka"
+        try:
+            cat_res = requests.get(f"{CATALOG_SERVICE_URL}/{loan.book_id}", headers=headers, timeout=5)
+            if cat_res.status_code == 200:
+                book_title = cat_res.json().get('title', book_title)
+        except Exception as e:
+            pass
+
+        payload = {
+            "loanId": loan.id,
+            "amount": amount,
+            "userName": user_id,
+            "bookTitle": book_title
+        }
+
+        try:
+            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json=payload, headers=headers, timeout=5)
+            if payment_res.status_code == 200:
+                if 'application/json' in payment_res.headers.get('Content-Type', ''):
+                    client_secret = payment_res.json().get('clientSecret')
+                else:
+                    client_secret = payment_res.text
+                return Response({'clientSecret': client_secret, 'amount': amount, 'type': payment_type})
+            return Response({"error": "Błąd z backendu Stripe", "details": payment_res.text}, status=500)
+        except Exception as e:
+            return Response({"error": "Payment service unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+class ReaderConfirmPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, loan_id):
+        user_id = request.user.username
+        try:
+            loan = Loan.objects.get(id=loan_id, user_id=user_id)
+        except Loan.DoesNotExist:
+            return Response({"error": "Loan not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if loan.status == 'PENDING_PAYMENT':
+            loan.status = 'ACTIVE'
+            loan.save()
+            return Response({"message": "Płatność startowa potwierdzona, status zmieniony na ACTIVE."})
+        elif loan.status == 'OVERDUE' and loan.penalty_amount > 0:
+            loan.penalty_amount = 0
+            loan.status = 'RETURNED'
+            loan.return_date = now()
+            loan.save()
+            
+            auth_header = request.headers.get('Authorization')
+            headers = {'Authorization': auth_header} if auth_header else {}
+            
+            try:
+                response = requests.get(f"{CATALOG_SERVICE_URL}/{loan.book_id}", headers=headers)
+                if response.status_code == 200:
+                    book_data = response.json()
+                    book_data['availableCopies'] += 1
+                    requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", json=book_data, headers=headers)
+            except requests.exceptions.RequestException:
+                pass
+            
+            return Response({"message": "Kara opłacona pomyślnie. Książka zwrócona."})
+        
+        return Response({"message": "Brak akcji do wykonania."}, status=status.HTTP_200_OK)
