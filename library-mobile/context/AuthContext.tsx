@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 
 const TOKEN_KEY = 'library_app_token';
-const KEYCLOAK_URL = process.env.EXPO_PUBLIC_KEYCLOAK_URL || 'http://192.168.3.42:8080/auth/realms/library-system';
+const KEYCLOAK_URL = process.env.EXPO_PUBLIC_KEYCLOAK_URL as string;
 const CLIENT_ID = 'library-mobile';
 
 interface AuthContextType {
@@ -19,7 +19,9 @@ interface AuthContextType {
   setup2FA: () => Promise<void>;
   resetPassword: () => Promise<void>;
 }
-
+console.log("CZY EXPO WIDZI ZMIENNE?: ", process.env.IP_ADDRESS);
+console.log("CZY EXPO WIDZI ZMIENNE?: ", process.env.EXPO_PUBLIC_API_URL);
+console.log("CZY EXPO WIDZI ZMIENNE?: ", process.env.EXPO_PUBLIC_KEYCLOAK_URL);
 const AuthContext = createContext<AuthContextType>({
   token: null,
   user: null,

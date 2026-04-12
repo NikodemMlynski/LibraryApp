@@ -3,7 +3,7 @@ import { View, Text, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicat
 import { useAuth } from '../../context/AuthContext';
 import { ShieldCheck, Key, LogOut } from 'lucide-react-native';
 
-const KEYCLOAK_URL = process.env.EXPO_PUBLIC_KEYCLOAK_URL || 'http://192.168.3.42:8080/auth/realms/library-system';
+const KEYCLOAK_URL = process.env.EXPO_PUBLIC_KEYCLOAK_URL as string;
 
 export default function ProfileScreen() {
     const { token, logout, setup2FA, resetPassword, user } = useAuth();
