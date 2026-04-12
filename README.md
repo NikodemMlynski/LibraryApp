@@ -5,6 +5,11 @@
 
 A production-ready, highly scalable library management system engineered with a polyglot microservice architecture. It features asymmetric JWT-based authentication, an externalized and environment-agnostic configuration system, and asynchronous task management.
 
+## 📚 Documentation
+- [⚙️ Architecture & Design](./docs/architecture.md)
+- [🔒 Security Considerations](./docs/security.md)
+- [💻 Installation Guide](./docs/installation.md)
+
 ## 🏗 Architecture
 
 ```mermaid
