@@ -14,8 +14,21 @@ class KeycloakJWTAuthentication(BaseAuthentication):
         
         token = auth_header.split(' ')[1]
         
-        # Adres, pod którym Keycloak trzyma klucze publiczne do weryfikacji tokenów
-        jwks_url = "http://keycloak:8080/auth/realms/library-system/protocol/openid-connect/certs"
+        import os
+        
+        # Odbieramy adresy z .env
+        internal_url = os.environ.get('KEYCLOAK_INTERNAL_URL', 'http://keycloak:8080/auth').rstrip('/')
+        external_url = os.environ.get('KEYCLOAK_URL', 'http://localhost:8080/auth').rstrip('/')
+        
+        # Oczekujemy tokenów z frontendu (web) oraz od aplikacji mobilnej
+        # Web używa http://localhost/auth (bez portu 8080) a mobilka może używać 8080.
+        acceptable_issuers = [
+            f"{external_url}/realms/library-system",
+            f"{external_url.replace(':8080', '')}/realms/library-system"
+        ]
+        
+        # Adres, pod którym Keycloak trzyma klucze publiczne do weryfikacji tokenów (używamy wewnętrznego)
+        jwks_url = f"{internal_url}/realms/library-system/protocol/openid-connect/certs"
         jwk_client = PyJWKClient(jwks_url)
         
         try:
@@ -23,13 +36,13 @@ class KeycloakJWTAuthentication(BaseAuthentication):
             signing_key = jwk_client.get_signing_key_from_jwt(token)
             
             # Dekodujemy token! 
-            # Wyłączamy sprawdzanie 'iss' (issuera), bo React dostaje token z "http://localhost", 
-            # a Django siedzi w Dockerze i widzi "http://keycloak:8080", co powodowałoby fałszywy błąd.
+            # Weryfikujemy 'iss' używając zewnętrznego adresu Keycloak (z którego frontend dostał token)
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                options={"verify_aud": False, "verify_iss": False}
+                issuer=acceptable_issuers,
+                options={"verify_aud": False, "verify_iss": True}
             )
         except Exception as e:
             raise AuthenticationFailed(f"Nieprawidłowy lub wygasły token: {str(e)}")

@@ -339,9 +339,13 @@ class LibrarianUserListView(APIView):
         # 1. Pobierz token admina z Keycloaka
         admin_user = os.environ.get('KEYCLOAK_ADMIN_USER', 'admin')
         admin_password = os.environ.get('KEYCLOAK_ADMIN_PASSWORD', 'admin') # Upewnij się, że masz to w .env
-        keycloak_url = os.environ.get('KEYCLOAK_URL', 'http://keycloak:8080')
+        keycloak_internal_url = os.environ.get('KEYCLOAK_INTERNAL_URL', 'http://keycloak:8080/auth').rstrip('/')
         
-        token_url = f"{keycloak_url}/auth/realms/master/protocol/openid-connect/token"
+        # Jeśli env var nie ma /auth, dodajmy to (dość trywialny fallback)
+        if not keycloak_internal_url.endswith('/auth'):
+            keycloak_internal_url = f"{keycloak_internal_url}/auth"
+        
+        token_url = f"{keycloak_internal_url}/realms/master/protocol/openid-connect/token"
         token_data = {
             'client_id': 'admin-cli',
             'username': admin_user,
@@ -360,11 +364,11 @@ class LibrarianUserListView(APIView):
             # 2. Logika wyszukiwania
             if search_term:
                 # Jeśli szukamy, używamy głównego endpointu users z filtrem i limitem 15 wyników
-                users_url = f"{keycloak_url}/auth/admin/realms/library-system/users?search={search_term}&max=15"
+                users_url = f"{keycloak_internal_url}/admin/realms/library-system/users?search={search_term}&max=15"
             else:
                 # Jeśli dropdown jest po prostu otwarty, pobieramy pierwszych 15 readerów, 
                 # żeby nie zapchać przeglądarki przy tysiącach kont
-                users_url = f"{keycloak_url}/auth/admin/realms/library-system/roles/reader/users?first=0&max=15"
+                users_url = f"{keycloak_internal_url}/admin/realms/library-system/roles/reader/users?first=0&max=15"
             
             users_res = requests.get(users_url, headers=headers)
             if users_res.status_code != 200:
