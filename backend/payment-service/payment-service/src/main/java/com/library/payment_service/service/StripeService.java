@@ -72,23 +72,23 @@ public class StripeService {
 
     @Transactional
     public void handleWebhook(String payload, String sigHeader) {
-        System.out.println("Otrzymano Webhook ze Stripe!");
+        System.out.println("Received Webhook from Stripe!");
         try {
             // Weryfikacja kryptograficzna - czy to na pewno Stripe?
             Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
-            System.out.println("Typ eventu: " + event.getType());
+            System.out.println("Event type: " + event.getType());
 
             if ("payment_intent.succeeded".equals(event.getType())) {
                 PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer().deserializeUnsafe();
 
                 if (intent != null) {
-                    System.out.println("Sukces płatności dla Intent ID: " + intent.getId());
+                    System.out.println("Payment success for Intent ID: " + intent.getId());
 
                     paymentRepository.findByStripePaymentIntentId(intent.getId()).ifPresentOrElse(fee -> {
                         fee.setStatus("PAID");
                         fee.setPaidAt(java.time.LocalDateTime.now());
                         paymentRepository.save(fee);
-                        System.out.println("Zaktualizowano transakcję " + fee.getId() + " na PAID w bazie danych!");
+                        System.out.println("Updated transaction " + fee.getId() + " to PAID in database!");
 
                         try {
                             RestTemplate restTemplate = new RestTemplate();
@@ -98,7 +98,7 @@ public class StripeService {
                             Map<String, Object> metadata = new HashMap<>();
                             metadata.put("loan_id", fee.getLoanId());
                             metadata.put("amount", fee.getAmount());
-                            metadata.put("message", "Zaksięgowano płatność za książkę: " + fee.getBookTitle());
+                            metadata.put("message", "Payment for book: " + fee.getBookTitle());
 
                             String actionType = fee.getAmount().compareTo(new BigDecimal("2.00")) > 0
                                     ? "PAYMENT_PENALTY_SUCCESS"
@@ -113,17 +113,17 @@ public class StripeService {
                             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
                             restTemplate.postForLocation(analyticsServiceUrl + "/internal/logs", request);
                         } catch (Exception ex) {
-                            System.out.println("Błąd wysyłania logu do analytics-service: " + ex.getMessage());
+                            System.out.println("Error sending log to analytics-service: " + ex.getMessage());
                         }
 
                     }, () -> {
-                        System.out.println("UWAGA: Nie znaleziono transakcji w bazie dla ID: " + intent.getId());
+                        System.out.println("Transaction not found in database for ID: " + intent.getId());
                     });
                 }
             } else if ("payment_intent.payment_failed".equals(event.getType())) {
                 PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer().deserializeUnsafe();
                 if (intent != null) {
-                    System.out.println("Odrzucono płatność dla Intent ID: " + intent.getId());
+                    System.out.println("Payment failed for Intent ID: " + intent.getId());
                     paymentRepository.findByStripePaymentIntentId(intent.getId()).ifPresent(fee -> {
                         fee.setStatus("FAILED");
                         paymentRepository.save(fee);
@@ -136,7 +136,7 @@ public class StripeService {
                             Map<String, Object> metadata = new HashMap<>();
                             metadata.put("loan_id", fee.getLoanId());
                             metadata.put("amount", fee.getAmount());
-                            metadata.put("message", "Odrzucono próbę wpłaty dla książki: " + fee.getBookTitle());
+                            metadata.put("message", "Payment failed for book: " + fee.getBookTitle());
 
                             Map<String, Object> requestBody = new HashMap<>();
                             requestBody.put("action_type", "PAYMENT_FAILED");
@@ -147,16 +147,16 @@ public class StripeService {
                             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
                             restTemplate.postForLocation(analyticsServiceUrl + "/internal/logs", request);
                         } catch (Exception ex) {
-                            System.out.println("Błąd logowania porażki: " + ex.getMessage());
+                            System.out.println("Error logging payment failure: " + ex.getMessage());
                         }
                     });
                 }
             }
         } catch (SignatureVerificationException e) {
-            System.out.println("Błąd sygnatury Webhooka!");
-            throw new RuntimeException("Niewłaściwy podpis Webhooka!");
+            System.out.println("Webhook signature verification failed!");
+            throw new RuntimeException("Invalid webhook signature!");
         } catch (Exception e) {
-            System.out.println("Inny błąd podczas webhooka: " + e.getMessage());
+            System.out.println("Other error during webhook processing: " + e.getMessage());
         }
     }
 

@@ -80,7 +80,7 @@ export const RootLayout = () => {
             onClick={() => void auth.signoutRedirect()} 
             className="w-full bg-red-600 hover:bg-red-700 py-2 rounded text-white font-medium transition"
           >
-            Wyloguj się
+            Sign Out
           </button>
         </div>
       </aside>

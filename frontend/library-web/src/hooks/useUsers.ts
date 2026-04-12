@@ -96,11 +96,11 @@ export const useDeleteUser = () => {
             action_type: 'LIBRARIAN_DELETED',
             actor_id: username,
             visibility: 'ADMIN',
-            metadata: { user_id: id, message: `Administrator ${username} usunął użytkownika.` }
+            metadata: { user_id: id, message: `Administrator ${username} deleted user.` }
           })
         }, token);
       } catch (e) {
-        console.warn("Nie udało się wysłać logu usunięcia wpisu:", e);
+        console.warn("Failed to send log of deleting entry:", e);
       }
     },
     onSuccess: () => {
@@ -150,11 +150,11 @@ export const useAddLibrarian = () => {
             action_type: 'LIBRARIAN_ADDED',
             actor_id: admin_username,
             visibility: 'ADMIN',
-            metadata: { new_user: userData.username, message: `Administrator ${admin_username} dodał bibliotekarza ${userData.username}.` }
+            metadata: { new_user: userData.username, message: `Administrator ${admin_username} added librarian ${userData.username}.` }
           })
         }, token);
       } catch (e) {
-        console.warn("Nie udało się wysłać logu dodania wpisu:", e);
+        console.warn("Failed to send log of adding entry:", e);
       }
 
       return true;

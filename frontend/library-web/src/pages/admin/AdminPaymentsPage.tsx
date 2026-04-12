@@ -65,8 +65,8 @@ export default function AdminPaymentsPage() {
     return aggregatedData.reduce((sum, item) => sum + item.total, 0);
   }, [aggregatedData]);
 
-  if (isLoading) return <div className="p-8">Ładowanie statystyk finansowych...</div>;
-  if (error) return <div className="p-8 text-red-500">Błąd podczas pobierania danych: {error.message}</div>;
+  if (isLoading) return <div className="p-8">Loading financial statistics...</div>;
+  if (error) return <div className="p-8 text-red-500">Error during data fetch: {error.message}</div>;
 
   return (
     <div className="flex flex-col h-full gap-6">
@@ -74,20 +74,20 @@ export default function AdminPaymentsPage() {
       {/* Górny panel podsumowujący */}
       <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Finanse Systemu</h1>
-          <p className="text-sm text-gray-500 mt-1">Raport przepływu środków ze Stripe</p>
+          <h1 className="text-3xl font-bold text-gray-800">System Finances</h1>
+          <p className="text-sm text-gray-500 mt-1">Stripe funds flow report</p>
         </div>
         <div className="text-xl font-bold bg-green-50 border border-green-200 text-green-700 px-6 py-3 rounded-xl shadow-sm">
-          Zarobek (wybrany interwał): {totalEarned.toFixed(2)} PLN
+          Earnings (selected interval): {totalEarned.toFixed(2)} PLN
         </div>
       </div>
 
       {/* Pasek Filtrów Dat */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-        <div className="text-sm font-semibold text-gray-700">Filtruj po dacie:</div>
+        <div className="text-sm font-semibold text-gray-700">Filter by date:</div>
         
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Od:</span>
+          <span className="text-xs text-gray-500">From:</span>
           <input 
             type="date" 
             value={startDate}
@@ -112,7 +112,7 @@ export default function AdminPaymentsPage() {
             onClick={() => { setStartDate(''); setEndDate(''); }}
             className="ml-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
           >
-            Wyczyść filtry
+            Clear filters
           </button>
         )}
       </div>
@@ -121,17 +121,17 @@ export default function AdminPaymentsPage() {
         {/* Wykres - Lewa Strona */}
         <div className="flex-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col w-2/3">
           <div className="flex justify-between mb-6">
-            <h2 className="text-lg font-bold text-gray-700">Wizualizacja Zysków</h2>
+            <h2 className="text-lg font-bold text-gray-700">Revenue Visualization</h2>
             <div className="flex gap-4">
               <select 
                 className="border border-gray-300 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 p-2 rounded-lg text-sm font-medium transition"
                 value={timeframe} 
                 onChange={e => setTimeframe(e.target.value as any)}
               >
-                <option value="day">Dzienny</option>
-                <option value="week">Tygodniowy</option>
-                <option value="month">Miesięczny</option>
-                <option value="year">Roczny</option>
+                <option value="day">Daily</option>
+                <option value="week">Weekly</option>
+                <option value="month">Monthly</option>
+                <option value="year">Yearly</option>
               </select>
 
               <select 
@@ -139,8 +139,8 @@ export default function AdminPaymentsPage() {
                 value={chartType} 
                 onChange={e => setChartType(e.target.value as any)}
               >
-                <option value="bar">Słupkowy (Bar)</option>
-                <option value="line">Liniowy (Line)</option>
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Chart</option>
               </select>
             </div>
           </div>
@@ -156,25 +156,25 @@ export default function AdminPaymentsPage() {
                   <BarChart data={aggregatedData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} />
-                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value} zł`} />
+                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value} PLN`} />
                     <Tooltip 
-                      formatter={(value: number) => [`${value.toFixed(2)} PLN`, 'Przychód']}
+                      formatter={(value: number) => [`${value.toFixed(2)} PLN`, 'Revenue']}
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     />
                     <Legend />
-                    <Bar dataKey="total" fill="#3b82f6" name="Przychód (PLN)" radius={[4, 4, 0, 0]} barSize={40} />
+                    <Bar dataKey="total" fill="#3b82f6" name="Revenue (PLN)" radius={[4, 4, 0, 0]} barSize={40} />
                   </BarChart>
                 ) : (
                   <LineChart data={aggregatedData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} />
-                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value} zł`} />
+                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value} PLN`} />
                     <Tooltip 
-                      formatter={(value: number) => [`${value.toFixed(2)} PLN`, 'Przychód']}
+                      formatter={(value: number) => [`${value.toFixed(2)} PLN`, 'Revenue']}
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="total" stroke="#3b82f6" name="Przychód (PLN)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="total" stroke="#3b82f6" name="Revenue (PLN)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
                   </LineChart>
                 )}
               </ResponsiveContainer>
@@ -185,12 +185,12 @@ export default function AdminPaymentsPage() {
         {/* Lista transakcji - Prawa strona */}
         <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden w-1/3 flex flex-col">
           <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-            <h2 className="text-lg font-bold text-gray-700">Ostatnie Transakcje ({filteredTransactions.length})</h2>
+            <h2 className="text-lg font-bold text-gray-700">Recent Transactions ({filteredTransactions.length})</h2>
           </div>
           <div className="overflow-y-auto flex-1 p-4 flex flex-col gap-3 custom-scrollbar">
             {filteredTransactions.length === 0 && (
               <div className="flex flex-col items-center justify-center h-40 text-center text-gray-400">
-                <p>Brak historii wpłat w tym przedziale.</p>
+                <p>No payment history in this period.</p>
               </div>
             )}
             
@@ -205,7 +205,7 @@ export default function AdminPaymentsPage() {
                 </div>
                 <div className="text-xs text-gray-600 mb-1 flex items-center gap-1 font-medium bg-gray-100 p-1.5 rounded truncate">
                   <svg className="w-3 h-3 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                  <span className="truncate">{t.bookTitle || `Wypożyczenie #${t.loanId}`}</span>
+                  <span className="truncate">{t.bookTitle || `Loan #${t.loanId}`}</span>
                 </div>
                 <div className="text-xs text-gray-400 flex items-center gap-1 mt-2">
                   <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>

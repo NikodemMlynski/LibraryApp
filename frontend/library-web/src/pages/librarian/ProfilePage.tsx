@@ -2,6 +2,7 @@ import { useAuth } from 'react-oidc-context';
 import { Button } from '../../components/ui/button';
 import { ShieldCheck, Key, CheckCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { KEYCLOAK_URL } from '@/config/constants';
 
 export default function ProfilePage() {
   const auth = useAuth();
@@ -13,13 +14,13 @@ export default function ProfilePage() {
       const token = auth.user?.access_token;
       if (!token) return [];
       
-      const res = await fetch('http://localhost/auth/realms/library-system/account/credentials', {
+      const res = await fetch(`${KEYCLOAK_URL}/realms/library-system/account/credentials`, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json'
         }
       });
-      if (!res.ok) throw new Error('Nie udało się pobrać danych o poświadczeniach');
+      if (!res.ok) throw new Error('Failed to fetch credential data');
       return res.json();
     },
     enabled: !!auth.user?.access_token
@@ -47,11 +48,11 @@ export default function ProfilePage() {
 
   return (
     <div className="bg-white shadow rounded-lg p-6 max-w-2xl mx-auto mt-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Mój Profil</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">My Profile</h1>
       
       <div className="space-y-4 mb-8">
         <div>
-          <span className="text-gray-500 block text-sm">Nazwa użytkownika</span>
+          <span className="text-gray-500 block text-sm">Username</span>
           <span className="text-lg font-medium">{userProfile?.preferred_username}</span>
         </div>
         <div>
@@ -59,7 +60,7 @@ export default function ProfilePage() {
           <span className="text-lg font-medium">{userProfile?.email || 'Brak'}</span>
         </div>
         <div>
-          <span className="text-gray-500 block text-sm">Imię</span>
+          <span className="text-gray-500 block text-sm">First Name</span>
           <span className="text-lg font-medium">{userProfile?.given_name || 'Brak'}</span>
         </div>
         <div>
@@ -69,9 +70,9 @@ export default function ProfilePage() {
       </div>
 
       <div className="border-t border-gray-200 pt-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Bezpieczeństwo i Konto</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Security and Account</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Zabezpiecz swoje konto używając weryfikacji dwuetapowej lub zmodyfikuj swoje hasło w portalu Keycloak.
+          Secure your account using two-factor authentication or modify your password in the Keycloak portal.
         </p>
 
         <div className="flex flex-col sm:flex-row flex-wrap gap-4">
@@ -86,18 +87,18 @@ export default function ProfilePage() {
               className="flex items-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800 cursor-default"
             >
               <CheckCircle className="h-4 w-4" />
-              2FA Włączone
+              2FA Enabled
             </Button>
           ) : (
             <Button onClick={handleEnable2FA} className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4" />
-              Skonfiguruj 2FA
+              Configure 2FA
             </Button>
           )}
 
           <Button onClick={handleManageAccount} variant="outline" className="flex items-center gap-2">
             <Key className="h-4 w-4" />
-            Zmień hasło
+            Change Password
           </Button>
         </div>
       </div>

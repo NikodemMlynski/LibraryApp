@@ -94,17 +94,12 @@ def verify_token(authorization: str = Header(None)) -> dict:
         return payload
 
     except jwt.ExpiredSignatureError as e:
-        print(f"DEBUG AUTH: Token expired - {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
     except jwt.JWTClaimsError as e:
-        print(f"DEBUG AUTH: Claims mismatch - {e}")
-        print(f"DEBUG AUTH: Expected Issuer: {EXPECTED_ISSUER}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Incorrect claims: {e}")
     except JWTError as e:
-        print(f"DEBUG AUTH: JWT Verification failed - {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token signature: {e}")
     except Exception as e:
-        print(f"DEBUG AUTH: Unknown auth error - {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Authentication failed: {e}")
 
 

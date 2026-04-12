@@ -147,7 +147,7 @@ export default function LoansScreen() {
 
                 {/* PRZYCISKI AKCJI */}
                 <View className="flex-row gap-2 mt-2">
-                    {/* Opcja 1: Zwróć Książkę (Dla aktywnych i przetrzymanych) */}
+                    {/* Opcja 1: Return Book (Dla aktywnych i przetrzymanych) */}
                     {(isActive || isOverdue) && (
                         <TouchableOpacity
                             className="bg-indigo-600 py-3 rounded-lg items-center flex-1 flex-row justify-center"
@@ -161,7 +161,7 @@ export default function LoansScreen() {
                         </TouchableOpacity>
                     )}
 
-                    {/* Opcja 2: Opłać wypożyczenie (Tylko dla Pending Payment) */}
+                    {/* Opcja 2: Pay wypożyczenie (Tylko dla Pending Payment) */}
                     {isPendingPayment && (
                         <TouchableOpacity
                             className="bg-orange-500 py-3 rounded-lg items-center flex-1 flex-row justify-center"

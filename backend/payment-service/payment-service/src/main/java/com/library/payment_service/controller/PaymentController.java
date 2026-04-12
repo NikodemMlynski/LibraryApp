@@ -57,8 +57,6 @@ public class PaymentController {
         }
     }
 
-    // ZWRÓĆ UWAGĘ: Zwracamy po prostu 200 OK. Stripe musi wiedzieć, że dostaliśmy
-    // sygnał.
     @PostMapping("/webhook")
     public ResponseEntity<Void> handleStripeWebhook(
             @RequestBody String payload, // Stripe wysyła surowy JSON

@@ -96,7 +96,7 @@ public class BookController {
                 metadata.put("book_id", savedBook.getId());
                 metadata.put("title", savedBook.getTitle());
                 metadata.put("isbn", savedBook.getIsbn());
-                metadata.put("message", "Dodano nową pozycję w katalogu: " + savedBook.getTitle());
+                metadata.put("message", "Added new book to catalog: " + savedBook.getTitle());
 
                 String username = jwt != null && jwt.getClaimAsString("preferred_username") != null
                         ? jwt.getClaimAsString("preferred_username")
@@ -111,7 +111,7 @@ public class BookController {
                 HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
                 restTemplate.postForLocation(analyticsServiceUrl + "/internal/logs", request);
             } catch (Exception ex) {
-                System.out.println("Błąd wysyłania logu do analytics-service: " + ex.getMessage());
+                System.out.println("Failed to send log to analytics-service: " + ex.getMessage());
             }
 
             return ResponseEntity.ok(savedBook);
@@ -193,7 +193,7 @@ public class BookController {
                     metadata.put("book_id", savedBook.getId());
                     metadata.put("title", savedBook.getTitle());
                     metadata.put("lost_count", count);
-                    metadata.put("message", "Zgłoszono zniszczenie lub zagubienie książki: " + savedBook.getTitle());
+                    metadata.put("message", "Reported damage or loss of book: " + savedBook.getTitle());
 
                     String username = jwt != null && jwt.getClaimAsString("preferred_username") != null
                             ? jwt.getClaimAsString("preferred_username")
@@ -206,9 +206,9 @@ public class BookController {
                     requestBody.put("metadata", metadata);
 
                     HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-                    restTemplate.postForLocation("http://analytics-service:8000/internal/logs", request);
+                    restTemplate.postForLocation(analyticsServiceUrl + "/internal/logs", request);
                 } catch (Exception ex) {
-                    System.out.println("Błąd wysyłania logu do analytics-service: " + ex.getMessage());
+                    System.out.println("Failed to send log to analytics-service: " + ex.getMessage());
                 }
 
                 return ResponseEntity.ok(savedBook);

@@ -129,7 +129,7 @@ export const LoanList = () => {
                           className="ml-2"
                           onClick={() => navigate(`/app/librarian/loans/${loan.id}/pay`)}
                         >
-                          Opłać
+                          Pay
                         </Button>
                       )}
                     </td>

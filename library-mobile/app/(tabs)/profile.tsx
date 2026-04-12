@@ -74,7 +74,7 @@ export default function ProfileScreen() {
                     )}
                 </View>
 
-                {/* Sekcja Bezpieczeństwa */}
+                {/* Security Section */}
                 <View className="w-full mb-2">
                     <Text className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-2 mb-3">Security & Authentication</Text>
                 </View>
@@ -82,7 +82,7 @@ export default function ProfileScreen() {
                 {/* Kafelki akcji */}
                 <View className="w-full flex-col gap-4">
                     
-                    {/* Przycisk 2FA - Zablokowany jeśli 2FA jest aktywne */}
+                    {/* 2FA Button - Zablokowany jeśli 2FA jest aktywne */}
                     <TouchableOpacity 
                         className={`w-full bg-white border border-gray-100 rounded-2xl py-4 px-5 flex-row items-center shadow-sm ${
                             is2FAActive && !isChecking2FA ? 'bg-emerald-50/50' : ''
@@ -113,7 +113,7 @@ export default function ProfileScreen() {
                         </View>
                     </TouchableOpacity>
 
-                    {/* Przycisk Zmiany Hasła */}
+                    {/* Change Password Button */}
                     <TouchableOpacity 
                         className="w-full bg-white border border-gray-100 rounded-2xl py-4 px-5 flex-row items-center shadow-sm"
                         onPress={resetPassword}

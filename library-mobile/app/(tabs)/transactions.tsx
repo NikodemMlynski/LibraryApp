@@ -93,7 +93,7 @@ export default function TransactionsScreen() {
                 {/* Kwota po prawej */}
                 <View className="items-end pl-2">
                     <Text className="text-lg font-bold text-gray-900">
-                        -{Number(item.amount).toFixed(2)} zł
+                        -{Number(item.amount).toFixed(2)} PLN
                     </Text>
                     <View className="bg-green-100 px-2 py-0.5 rounded mt-1">
                         <Text className="text-[10px] font-bold text-green-700 uppercase">Paid</Text>

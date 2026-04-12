@@ -7,10 +7,10 @@ from django.contrib.auth.models import User
 
 @shared_task
 def check_overdue_loans():
-    print(f"[{now()}] URUCHAMIANIE ZADANIA check_overdue_loans...")
+    print(f"[{now()}] Starting check_overdue_loans task...")
     # Pobierz z bazy wszystkie obiekty Loan, gdzie status to 'ACTIVE' lub 'OVERDUE' oraz due_date jest mniejsze niż now().
     overdue_loans = Loan.objects.filter(status__in=['ACTIVE', 'OVERDUE'], due_date__lt=now())
-    print(f"[{now()}] Znaleziono {overdue_loans.count()} przeterminowanych wypożyczeń w bazie danych.")
+    print(f"[{now()}] Found {overdue_loans.count()} overdue loans in database.")
     count = 0
     
     from decimal import Decimal
@@ -28,7 +28,7 @@ def check_overdue_loans():
             action_type="LOAN_OVERDUE_MARKED",
             actor_id="system-celery",
             visibility="LIBRARIAN",
-            metadata={"loan_id": loan.id, "days_overdue": days_overdue, "message": f"System oznaczył wypożyczenie {loan.id} użytkownika {loan.user_id} jako przetrzymane."}
+            metadata={"loan_id": loan.id, "days_overdue": days_overdue, "message": f"System marked loan {loan.id} of user {loan.user_id} as overdue."}
         )
         
         # Dla każdego z nich wyślij żądanie POST do notify-service
@@ -70,7 +70,7 @@ def check_overdue_loans():
                             else:
                                 User.objects.create(username=loan.user_id, email=user_email)
             except Exception as e:
-                print(f"Błąd przy pobieraniu emaila z Keycloak dla usera {loan.user_id}: {e}")
+                print(f"Error fetching email from Keycloak for user {loan.user_id}: {e}")
             
             if not user_email:
                 user_email = f"{loan.user_id}@example.com" 
@@ -78,8 +78,8 @@ def check_overdue_loans():
         notification_payload = {
             "user_id": str(loan.user_id),
             "recipient_email": user_email,
-            "subject": "Twoje wypożyczenie zostało opóźnione / Overdue Loan",
-            "message_body": f"Książka o ID {loan.book_id} nie została zwrócona w terminie. Prosimy o natychmiastowy zwrot.\n\nBook ID {loan.book_id} is overdue. Please return it immediately."
+            "subject": "Your loan is overdue",
+            "message_body": f"Book ID {loan.book_id} is overdue. Please return it immediately."
         }
 
         try:
