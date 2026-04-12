@@ -106,7 +106,7 @@ export const LoanList = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {loan.status !== 'RETURNED' && (
+                    {loan.status !== 'RETURNED' && loan.status !== 'PENDING_PAYMENT' && (
                       <Button 
                         size="sm" 
                         variant="default"

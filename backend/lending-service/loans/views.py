@@ -80,11 +80,17 @@ class ReturnBookView(APIView):
     def post(self, request, loan_id):
         user_id = request.user.username
         
-        # 1. Znajdujemy aktywne wypożyczenie upewniając się, że należy do osoby wysyłającej zapytanie!
+        # 1. Znajdujemy wypożyczenie upewniając się, że należy do osoby wysyłającej zapytanie!
         try:
-            loan = Loan.objects.get(id=loan_id, status__in=['ACTIVE', 'OVERDUE'], user_id=user_id)
+            loan = Loan.objects.get(id=loan_id, user_id=user_id)
         except Loan.DoesNotExist:
-            return Response({"error": "Nie znaleziono aktywnego wypożyczenia dla tego użytkownika"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Nie znaleziono wypożyczenia dla tego użytkownika"}, status=status.HTTP_404_NOT_FOUND)
+            
+        if loan.status == 'PENDING_PAYMENT':
+            return Response({"error": "Cannot return an unpaid loan. Please complete the payment first."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if loan.status not in ['ACTIVE', 'OVERDUE']:
+            return Response({"error": f"Nie można zwrócić książki o statusie {loan.status}"}, status=status.HTTP_400_BAD_REQUEST)
 
         auth_header = request.headers.get('Authorization')
         headers = {'Authorization': auth_header} if auth_header else {}
@@ -282,6 +288,9 @@ class LibrarianUpdateLoanView(APIView):
         headers = {'Authorization': auth_header} if auth_header else {}
         
         if action == 'return' and loan.status != 'RETURNED':
+            if loan.status == 'PENDING_PAYMENT':
+                return Response({"error": "Cannot return an unpaid loan. Please complete the payment first."}, status=status.HTTP_400_BAD_REQUEST)
+                
             if loan.status in ['ACTIVE', 'OVERDUE'] and now() > loan.due_date:
                 days_overdue = (now() - loan.due_date).days
                 if days_overdue > 0:
@@ -491,6 +500,9 @@ class ReaderUpdateLoanView(APIView):
         headers = {'Authorization': auth_header} if auth_header else {}
         
         if action == 'return' and loan.status != 'RETURNED':
+            if loan.status == 'PENDING_PAYMENT':
+                return Response({"error": "Cannot return an unpaid loan. Please complete the payment first."}, status=status.HTTP_400_BAD_REQUEST)
+
             if loan.status in ['ACTIVE', 'OVERDUE'] and now() > loan.due_date:
                 days_overdue = (now() - loan.due_date).days
                 if days_overdue > 0:

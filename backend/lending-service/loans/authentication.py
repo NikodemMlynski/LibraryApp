@@ -35,15 +35,20 @@ class KeycloakJWTAuthentication(BaseAuthentication):
             # Pobieramy klucz publiczny pasujący do tego konkretnego tokena
             signing_key = jwk_client.get_signing_key_from_jwt(token)
             
-            # Dekodujemy token! 
-            # Weryfikujemy 'iss' używając zewnętrznego adresu Keycloak (z którego frontend dostał token)
+            # Weryfikacja JWT z dynamicznym sprawdzaniem issuera
+            # (pozwala to na korzystanie z IP takich jak 192.168.x.x dla aplikacji mobilnej z Expo)
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                issuer=acceptable_issuers,
-                options={"verify_aud": False, "verify_iss": True}
+                options={"verify_aud": False, "verify_iss": False}
             )
+            
+            # Weryfikacja manualna czy issuer pochodzi na pewno z naszego realmu Keycloaka
+            issuer = payload.get("iss", "")
+            if not issuer.endswith("/realms/library-system"):
+                raise jwt.exceptions.InvalidIssuerError(f"Nieznany issuer JWT: {issuer}")
+                
         except Exception as e:
             raise AuthenticationFailed(f"Nieprawidłowy lub wygasły token: {str(e)}")
         

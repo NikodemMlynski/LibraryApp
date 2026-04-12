@@ -136,6 +136,13 @@ export default function LoansScreen() {
                             Penalty due: {Number(item.penalty_amount).toFixed(2)} PLN
                         </Text>
                     )}
+                    
+                    {/* Komunikat o konieczności opłacenia wypożyczenia przed podjęciem akcji */}
+                    {isPendingPayment && (
+                        <Text className="text-orange-600 text-sm font-bold mt-1">
+                            ⚠️ This loan is unpaid. Please complete the payment to activate and return the book.
+                        </Text>
+                    )}
                 </View>
 
                 {/* PRZYCISKI AKCJI */}

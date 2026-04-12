@@ -28,7 +28,7 @@ def check_overdue_loans():
             action_type="LOAN_OVERDUE_MARKED",
             actor_id="system-celery",
             visibility="LIBRARIAN",
-            metadata={"loan_id": loan.id, "days_overdue": days_overdue, "message": f"System oznaczył wypożyczenie {loan.id} jako przetrzymane."}
+            metadata={"loan_id": loan.id, "days_overdue": days_overdue, "message": f"System oznaczył wypożyczenie {loan.id} użytkownika {loan.user_id} jako przetrzymane."}
         )
         
         # Dla każdego z nich wyślij żądanie POST do notify-service

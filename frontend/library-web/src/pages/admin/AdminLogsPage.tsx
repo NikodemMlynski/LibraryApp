@@ -102,7 +102,6 @@ export default function AdminLogsPage() {
                       </div>
                       <div className="mt-2 text-[10px] sm:text-xs text-slate-500 flex flex-wrap justify-between gap-2">
                         <span className="truncate">Aktor: <span className="font-mono bg-white px-1 py-0.5 rounded border ml-1">{log.actor_id}</span></span>
-                        <span className="shrink-0 font-medium">Wynik: {log.visibility}</span>
                       </div>
                     </div>
                   </div>
