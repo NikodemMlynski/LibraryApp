@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { fetchWithAuth } from './useBooks';
+import { ENDPOINTS } from '@/config/constants';
 
 export interface PaymentTransaction {
   id: number;
@@ -14,15 +15,13 @@ export interface PaymentTransaction {
   paidAt?: string;
 }
 
-const PAYMENT_API_URL = 'http://localhost/api/payments';
-
 export const useAdminTransactions = () => {
   const auth = useAuth();
   const token = auth.user?.access_token;
 
   return useQuery<PaymentTransaction[], Error>({
     queryKey: ['admin-transactions'],
-    queryFn: () => fetchWithAuth(`${PAYMENT_API_URL}/admin/transactions`, { method: 'GET' }, token),
+    queryFn: () => fetchWithAuth(`${ENDPOINTS.PAYMENTS}/admin/transactions`, { method: 'GET' }, token),
     enabled: !!token, 
   });
 };

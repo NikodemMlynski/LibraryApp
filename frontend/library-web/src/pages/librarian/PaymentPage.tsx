@@ -4,9 +4,9 @@ import { useInitLoanPayment, useConfirmLoanPayment } from '@/hooks/useLoans';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Button } from '@/components/ui/button';
+import { STRIPE_PUBLIC_KEY } from '@/config/constants';
 
-// Obiekt Stripe
-const stripePromise = loadStripe('pk_test_51T9OUGBJ8jG7AYBeTPataHjPA9cBh250Bx2G3FLB7QFe2kxxWlf5GlPPKc8A0Orn4Ivl3g0vXb3i9FwCVuohonEY00TN9r7eJF');
+const stripePromise = loadStripe(STRIPE_PUBLIC_KEY);
 
 const CheckoutForm = ({ loanId, amount }: { loanId: number, amount: number }) => {
   const stripe = useStripe();

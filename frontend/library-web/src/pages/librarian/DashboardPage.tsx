@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useLibrarianLoans, useUpdateLibrarianLoan } from '../../hooks/useLoans';
 import { useBooks } from '../../hooks/useBooks';
 import { useAddLibrarian } from '../../hooks/useUsers';
+import { useAuditLogs } from '../../hooks/useLogs';
+import type { ActionType } from '../../hooks/useLogs';
 
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -13,12 +15,39 @@ import { useNavigate } from 'react-router-dom';
 
 import { BookOpen, AlertCircle, Clock, Archive, Plus, Bell } from 'lucide-react';
 
+const getLogAppearance = (action: ActionType) => {
+  switch (action) {
+    case 'PAYMENT_SUCCESS':
+    case 'PAYMENT_FEE_SUCCESS':
+      return { colorClass: 'bg-blue-500', title: 'Opłacono' };
+    case 'LOAN_RETURNED_ON_TIME':
+    case 'BOOK_RETURNED':
+      return { colorClass: 'bg-green-500', title: 'Zwrócono książkę' };
+    case 'LOAN_CREATED':
+    case 'BOOK_ADDED':
+      return { colorClass: 'bg-purple-500', title: 'Nowa aktywność' };
+    case 'LOAN_OVERDUE_MARKED':
+      return { colorClass: 'bg-red-500', title: 'Przetrzymanie' };
+    case 'BOOK_LOST_OR_DAMAGED':
+    case 'PAYMENT_FAILED':
+    case 'LIBRARIAN_DELETED':
+      return { colorClass: 'bg-gray-800', title: 'Zdarzenie negatywne' };
+    case 'USER_REGISTERED':
+    case 'LIBRARIAN_ADDED':
+      return { colorClass: 'bg-indigo-500', title: 'Nowy użytkownik' };
+    default:
+      return { colorClass: 'bg-gray-400', title: 'Log systemowy' };
+  }
+};
+
 export default function DashboardPage() {
   // KPI Data
   const { data: activeLoans } = useLibrarianLoans('ACTIVE', 1);
   const { data: overdueLoans } = useLibrarianLoans('OVERDUE', 1);
   const { data: pendingLoans } = useLibrarianLoans('PENDING_PAYMENT', 1);
   const { data: booksData } = useBooks(0, 1); // just to get totalElements
+  const { data: auditLogsData, isLoading: isLogsLoading } = useAuditLogs();
+  const recentLogs = auditLogsData?.pages?.[0]?.items?.slice(0, 4) || [];
 
   const navigate = useNavigate();
 
@@ -174,37 +203,30 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-gray-800">Ostatnia Aktywność</h2>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="relative border-l-2 border-gray-200 ml-3 space-y-8">
-              
-              <div className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-blue-500 ring-4 ring-white" />
-                <p className="text-sm font-medium text-gray-900">Jan Kowalski opłacił karę</p>
-                <p className="text-xs text-gray-500">Dzisiaj, 11:45 • Kwota: 2.50 PLN</p>
-              </div>
-
-              <div className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-green-500 ring-4 ring-white" />
-                <p className="text-sm font-medium text-gray-900">Zwrócono "Wiedźmina"</p>
-                <p className="text-xs text-gray-500">Dzisiaj, 10:30 • Zwrócił: Piotr Nowak</p>
-              </div>
-
-              <div className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-purple-500 ring-4 ring-white" />
-                <p className="text-sm font-medium text-gray-900">Nowe wypożyczenie</p>
-                <p className="text-xs text-gray-500">Dzisiaj, 09:12 • "Zbrodnia i kara"</p>
-              </div>
-
-              <div className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-red-500 ring-4 ring-white" />
-                <p className="text-sm font-medium text-gray-900">System naliczył kary (Celery)</p>
-                <p className="text-xs text-gray-500">Wczoraj, 23:59 • Dla 4 użytkowników</p>
-              </div>
-
-            </div>
             
-            <Button variant="ghost" className="w-full mt-6 text-sm text-gray-500">
-              Zobacz cały log
-            </Button>
+            {isLogsLoading ? (
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              </div>
+            ) : recentLogs.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                Brak zarejestrowanych aktywności.
+              </div>
+            ) : (
+              <div className="relative border-l-2 border-gray-200 ml-3 space-y-8">
+                {recentLogs.map((log) => {
+                  const appearance = getLogAppearance(log.action_type);
+                  const timeStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <div key={log.id} className="relative pl-6">
+                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full ${appearance.colorClass} ring-4 ring-white`} />
+                      <p className="text-sm font-medium text-gray-900">{appearance.title}</p>
+                      <p className="text-xs text-gray-500">{timeStr} • {log.metadata?.message || "Akcja systemowa"}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

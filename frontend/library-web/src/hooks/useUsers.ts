@@ -1,3 +1,5 @@
+// Upewnij się, że importujesz też API_URL (lub ENDPOINTS, jeśli tak to nazwałeś)
+import { KEYCLOAK_URL, API_URL } from '@/config/constants';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 
@@ -9,9 +11,6 @@ export interface KeycloakUser {
   lastName?: string;
   enabled: boolean;
 }
-
-const API_URL = 'http://localhost/auth/admin/realms/library-system/users';
-const ROLES_API_URL = 'http://localhost/auth/admin/realms/library-system/roles';
 
 const fetchWithToken = async (url: string, options: RequestInit, token?: string) => {
   const headers = new Headers(options.headers || {});
@@ -37,7 +36,6 @@ const fetchWithToken = async (url: string, options: RequestInit, token?: string)
     throw error;
   }
   
-  // Bezpieczne parsowanie odpowiedzi (nawet jeśli backend zwróci 201 Created lub 204 No Content bez body)
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 };
@@ -49,7 +47,8 @@ export const useUsers = (page: number = 0, size: number = 10, search?: string) =
   const first = page * size;
   const max = size;
   
-  let url = `${API_URL}?first=${first}&max=${max}`;
+  // POPRAWKA: Usunięto podwójne /auth
+  let url = `${KEYCLOAK_URL}/admin/realms/library-system/users?first=${first}&max=${max}`;
   if (search) {
     url += `&search=${encodeURIComponent(search)}`;
   }
@@ -65,7 +64,8 @@ export const useUsersCount = (search?: string) => {
   const auth = useAuth();
   const token = auth.user?.access_token;
   
-  let url = `${API_URL}/count`;
+  // POPRAWKA: Usunięto podwójne /auth
+  let url = `${KEYCLOAK_URL}/admin/realms/library-system/users/count`;
   if (search) {
     url += `?search=${encodeURIComponent(search)}`;
   }
@@ -85,10 +85,12 @@ export const useDeleteUser = () => {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      await fetchWithToken(`${API_URL}/${id}`, { method: 'DELETE' }, token);
+      // POPRAWKA: Usunięto podwójne /auth
+      await fetchWithToken(`${KEYCLOAK_URL}/admin/realms/library-system/users/${id}`, { method: 'DELETE' }, token);
       
       try {
-        await fetchWithToken('http://localhost/api/analytics/admin/logs', {
+        // POPRAWKA: Zastąpienie localhost na zmienną API_URL
+        await fetchWithToken(`${API_URL}/analytics/admin/logs`, {
           method: 'POST',
           body: JSON.stringify({
             action_type: 'LIBRARIAN_DELETED',
@@ -108,7 +110,6 @@ export const useDeleteUser = () => {
   });
 };
 
-// NOWY HOOK: Tworzy użytkownika i nadaje mu rolę "librarian"
 export const useAddLibrarian = () => {
   const queryClient = useQueryClient();
   const auth = useAuth();
@@ -117,8 +118,8 @@ export const useAddLibrarian = () => {
 
   return useMutation({
     mutationFn: async (userData: any) => {
-      // 1. Utworzenie użytkownika w Keycloak
-      await fetchWithToken(API_URL, {
+      // POPRAWKA: Usunięto podwójne /auth we wszystkich poniższych wywołaniach
+      await fetchWithToken(`${KEYCLOAK_URL}/admin/realms/library-system/users`, {
         method: 'POST',
         body: JSON.stringify({
           username: userData.username,
@@ -130,22 +131,20 @@ export const useAddLibrarian = () => {
         })
       }, token);
 
-      // 2. Pobranie ID nowo utworzonego użytkownika (szukamy po exact username)
-      const users = await fetchWithToken(`${API_URL}?username=${userData.username}&exact=true`, { method: 'GET' }, token);
+      const users = await fetchWithToken(`${KEYCLOAK_URL}/admin/realms/library-system/users?username=${userData.username}&exact=true`, { method: 'GET' }, token);
       if (!users || users.length === 0) throw new Error("Nie udało się odnaleźć nowo utworzonego użytkownika.");
       const userId = users[0].id;
 
-      // 3. Pobranie detali roli 'librarian' (aby uzyskać jej ID)
-      const roleData = await fetchWithToken(`${ROLES_API_URL}/librarian`, { method: 'GET' }, token);
+      const roleData = await fetchWithToken(`${KEYCLOAK_URL}/admin/realms/library-system/roles/librarian`, { method: 'GET' }, token);
 
-      // 4. Przypisanie roli do użytkownika
-      await fetchWithToken(`${API_URL}/${userId}/role-mappings/realm`, {
+      await fetchWithToken(`${KEYCLOAK_URL}/admin/realms/library-system/users/${userId}/role-mappings/realm`, {
         method: 'POST',
-        body: JSON.stringify([roleData]) // Keycloak oczekuje tablicy ról
+        body: JSON.stringify([roleData]) 
       }, token);
       
       try {
-        await fetchWithToken('http://localhost/api/analytics/admin/logs', {
+        // POPRAWKA: Zastąpienie localhost na zmienną API_URL
+        await fetchWithToken(`${API_URL}/analytics/admin/logs`, {
           method: 'POST',
           body: JSON.stringify({
             action_type: 'LIBRARIAN_ADDED',

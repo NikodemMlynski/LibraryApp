@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { fetchWithAuth } from './useBooks';
+import { ENDPOINTS } from '@/config/constants';
 
 export interface Loan {
   id: number;
@@ -27,7 +28,6 @@ export interface PaginatedLoans {
   results: Loan[];
 }
 
-const API_URL = 'http://localhost/api/lending/librarian';
 
 export const useLibrarianLoans = (status: string, page: number) => {
   const auth = useAuth();
@@ -35,7 +35,7 @@ export const useLibrarianLoans = (status: string, page: number) => {
 
   return useQuery<PaginatedLoans, Error>({
     queryKey: ['librarian-loans', status, page],
-    queryFn: () => fetchWithAuth(`${API_URL}/loans/?status=${status}&page=${page}`, { method: 'GET' }, token),
+    queryFn: () => fetchWithAuth(`${ENDPOINTS.LENDING}/librarian/loans/?status=${status}&page=${page}`, { method: 'GET' }, token),
     enabled: !!token, 
   });
 };
@@ -44,7 +44,7 @@ export const useLibrarianUsers = (search?: string) => {
   const auth = useAuth();
   const token = auth.user?.access_token;
 
-  let url = `${API_URL}/users/`;
+  let url = `${ENDPOINTS.LENDING}/librarian/users/`;
   if (search) {
     url += `?search=${encodeURIComponent(search)}`;
   }
@@ -69,7 +69,7 @@ export const useCreateLibrarianLoan = () => {
 
   return useMutation({
     mutationFn: (newLoan: CreateLoanData) => {
-      return fetchWithAuth(`${API_URL}/loans/create/`, { 
+      return fetchWithAuth(`${ENDPOINTS.LENDING}/librarian/loans/create/`, { 
         method: 'POST', 
         body: JSON.stringify(newLoan) 
       }, token);
@@ -97,7 +97,7 @@ export const useUpdateLibrarianLoan = () => {
   return useMutation({
     mutationFn: (updateData: UpdateLoanData) => {
       const { id, ...data } = updateData;
-      return fetchWithAuth(`${API_URL}/loans/${id}/`, { 
+      return fetchWithAuth(`${ENDPOINTS.LENDING}/librarian/loans/${id}/`, { 
         method: 'PUT', 
         body: JSON.stringify(data) 
       }, token);
@@ -117,7 +117,7 @@ export const useConfirmLoanPayment = () => {
 
   return useMutation({
     mutationFn: (loanId: number) => {
-      return fetchWithAuth(`${API_URL}/loans/${loanId}/confirm-payment/`, { 
+      return fetchWithAuth(`${ENDPOINTS.LENDING}/librarian/loans/${loanId}/confirm-payment/`, { 
         method: 'POST' 
       }, token);
     },
@@ -134,7 +134,7 @@ export const useInitLoanPayment = () => {
 
   return useMutation({
     mutationFn: (loanId: number) => {
-      return fetchWithAuth(`${API_URL}/loans/${loanId}/init-payment/`, { 
+      return fetchWithAuth(`${ENDPOINTS.LENDING}/librarian/loans/${loanId}/init-payment/`, { 
         method: 'POST' 
       }, token);
     }
