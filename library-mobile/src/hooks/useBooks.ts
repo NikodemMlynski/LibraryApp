@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.42:8089/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL as string;
 
 export interface Book {
     id: number;

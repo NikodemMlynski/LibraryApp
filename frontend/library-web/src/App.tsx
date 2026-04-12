@@ -21,14 +21,14 @@ const SignInPage = () => {
     <div className="w-full">
       {auth.error && (
         <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm break-words">
-          Błąd logowania: {auth.error.message}
+          Login error: {auth.error.message}
         </div>
       )}
       <button 
         onClick={() => void auth.signinRedirect()} 
         className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700 transition cursor-pointer"
       >
-        Zaloguj się do systemu
+        Sign in to the system
       </button>
     </div>
   );
@@ -39,7 +39,7 @@ const AppRedirector = () => {
   const roles = getUserRoles(auth.user);
   if (roles.includes("admin")) return <Navigate to="/app/admin" replace />;
   if (roles.includes("librarian")) return <Navigate to="/app/librarian" replace />;
-  return <div className="p-8">Oczekiwanie na przydział ról od Administratora. Uruchom ponownie logowanie po zmianach.</div>;
+  return <div className="p-8">Waiting for role assignment from Administrator. Restart login after changes.</div>;
 };
 
 const router = createBrowserRouter([

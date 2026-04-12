@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useLibrarianLoans, useUpdateLibrarianLoan, type Loan } from '@/hooks/useLoans';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from 'react-oidc-context';
+import { getUserRoles } from '@/utils/auth';
 
 export const LoanList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,6 +14,9 @@ export const LoanList = () => {
   const { data, isLoading, isError, error } = useLibrarianLoans(status, page);
   const updateLoan = useUpdateLibrarianLoan();
   const navigate = useNavigate();
+  const auth = useAuth();
+  const roles = getUserRoles(auth.user);
+  const isLibrarian = roles.includes('librarian');
 
   useEffect(() => {
     const statusParam = searchParams.get('status');
@@ -80,13 +85,13 @@ export const LoanList = () => {
               <th className="px-6 py-3">Borrow Date</th>
               <th className="px-6 py-3">Due Date</th>
               <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Actions</th>
+              {isLibrarian && <th className="px-6 py-3">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {data?.results?.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">No loans found.</td>
+                <td colSpan={isLibrarian ? 7 : 6} className="px-6 py-4 text-center text-gray-500">No loans found.</td>
               </tr>
             ) : (
               data?.results?.map((loan) => (
@@ -105,28 +110,30 @@ export const LoanList = () => {
                       {loan.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    {loan.status !== 'RETURNED' && loan.status !== 'PENDING_PAYMENT' && (
-                      <Button 
-                        size="sm" 
-                        variant="default"
-                        onClick={() => handleReturn(loan)}
-                        disabled={updateLoan.isPending}
-                      >
-                        Mark Returned
-                      </Button>
-                    )}
-                    {loan.status === 'PENDING_PAYMENT' && (
-                      <Button 
-                        size="sm" 
-                        variant="secondary"
-                        className="ml-2"
-                        onClick={() => navigate(`/app/librarian/loans/${loan.id}/pay`)}
-                      >
-                        Opłać
-                      </Button>
-                    )}
-                  </td>
+                  {isLibrarian && (
+                    <td className="px-6 py-4">
+                      {loan.status !== 'RETURNED' && loan.status !== 'PENDING_PAYMENT' && (
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          onClick={() => handleReturn(loan)}
+                          disabled={updateLoan.isPending}
+                        >
+                          Mark Returned
+                        </Button>
+                      )}
+                      {loan.status === 'PENDING_PAYMENT' && (
+                        <Button 
+                          size="sm" 
+                          variant="secondary"
+                          className="ml-2"
+                          onClick={() => navigate(`/app/librarian/loans/${loan.id}/pay`)}
+                        >
+                          Pay
+                        </Button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

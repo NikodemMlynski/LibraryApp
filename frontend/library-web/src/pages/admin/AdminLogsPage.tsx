@@ -53,13 +53,13 @@ export default function AdminLogsPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dziennik Zdarzeń Systemowych (Audit Logs)</h1>
-        <p className="text-gray-500 mt-1">Podgląd operacji przechwyconych przez AWS DynamoDB.</p>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">System Audit Logs</h1>
+        <p className="text-gray-500 mt-1">Overview of operations captured by AWS DynamoDB.</p>
       </div>
 
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg font-medium text-gray-800">Oś Czasu Aktywności</CardTitle>
+          <CardTitle className="text-lg font-medium text-gray-800">Activity Timeline</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading && (
@@ -71,13 +71,13 @@ export default function AdminLogsPage() {
           {isError && (
             <div className="flex items-center gap-2 p-4 text-red-600 bg-red-50 rounded animate-pulse">
               <AlertCircle className="w-5 h-5" />
-              <span>Błąd pobierania logów: {(error as Error).message}</span>
+              <span>Error fetching logs: {(error as Error).message}</span>
             </div>
           )}
 
           {!isLoading && !isError && (!data || data.pages[0].items.length === 0) && (
             <div className="p-8 text-center text-gray-500">
-              Brak zarejestrowanych zdarzeń systemowych.
+              No registered system events.
             </div>
           )}
 
@@ -117,7 +117,7 @@ export default function AdminLogsPage() {
                  disabled={isFetchingNextPage}
                  className="px-6 py-2 bg-white border border-gray-300 rounded-full shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
                >
-                 {isFetchingNextPage ? 'Ładowanie...' : 'Pokaż starsze logi'}
+                 {isFetchingNextPage ? 'Loading...' : 'Show older logs'}
                </button>
              </div>
           )}

@@ -18,7 +18,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://keycloak:8080/auth/realms/library-system/protocol/openid-connect/certs
+          jwk-set-uri: ${KEYCLOAK_INTERNAL_URL}/realms/library-system/protocol/openid-connect/certs
 aws:
   region: ${AWS_REGION}
   s3:
@@ -31,3 +31,6 @@ server:
 logging:
   level:
     org.springframework.security: TRACE
+app:
+  analytics-service:
+    url: ${ANALYTICS_SERVICE_URL}

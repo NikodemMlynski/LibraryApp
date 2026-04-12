@@ -1,3 +1,4 @@
+import { ENDPOINTS } from '@/config/constants';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 
@@ -24,8 +25,6 @@ export interface PaginatedBooks {
   number: number;
   empty: boolean;
 }
-
-const API_URL = 'http://localhost/api/catalog/books';
 
 export const fetchWithAuth = async (url: string, options: RequestInit, token?: string) => {
   const headers = new Headers(options.headers || {});
@@ -63,7 +62,7 @@ export const useBooks = (page: number = 0, size: number = 8, search?: string) =>
   const token = auth.user?.access_token;
 
   // Dynamiczne budowanie URL
-  let url = `${API_URL}?page=${page}&size=${size}`;
+  let url = `${ENDPOINTS.CATALOG}?page=${page}&size=${size}`;
   if (search) {
     url += `&search=${encodeURIComponent(search)}`;
   }
@@ -98,7 +97,7 @@ export const useCreateBook = () => {
       if (newBook.file) {
         formData.append('file', newBook.file);
       }
-      return fetchWithAuth(API_URL, { 
+      return fetchWithAuth(ENDPOINTS.CATALOG, { 
         method: 'POST', 
         body: formData 
       }, token);
@@ -124,7 +123,7 @@ export const useUpdateBook = () => {
       if (updateData.file) {
         formData.append('file', updateData.file);
       }
-      return fetchWithAuth(`${API_URL}/${id}`, { 
+      return fetchWithAuth(`${ENDPOINTS.CATALOG}/${id}`, { 
         method: 'PUT', 
         body: formData 
       }, token);
@@ -142,7 +141,7 @@ export const useDeleteBook = () => {
 
   return useMutation({
     mutationFn: (id: number) => 
-      fetchWithAuth(`${API_URL}/${id}`, { 
+      fetchWithAuth(`${ENDPOINTS.CATALOG}/${id}`, { 
         method: 'DELETE' 
       }, token),
     onSuccess: () => {

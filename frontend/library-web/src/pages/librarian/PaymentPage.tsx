@@ -4,9 +4,9 @@ import { useInitLoanPayment, useConfirmLoanPayment } from '@/hooks/useLoans';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Button } from '@/components/ui/button';
+import { STRIPE_PUBLIC_KEY } from '@/config/constants';
 
-// Obiekt Stripe
-const stripePromise = loadStripe('pk_test_51T9OUGBJ8jG7AYBeTPataHjPA9cBh250Bx2G3FLB7QFe2kxxWlf5GlPPKc8A0Orn4Ivl3g0vXb3i9FwCVuohonEY00TN9r7eJF');
+const stripePromise = loadStripe(STRIPE_PUBLIC_KEY);
 
 const CheckoutForm = ({ loanId, amount }: { loanId: number, amount: number }) => {
   const stripe = useStripe();
@@ -31,7 +31,7 @@ const CheckoutForm = ({ loanId, amount }: { loanId: number, amount: number }) =>
     });
 
     if (error) {
-      setErrorMessage(error.message || 'Wystąpił nieznany błąd.');
+      setErrorMessage(error.message || 'An unknown error occurred.');
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === 'succeeded') {
       confirmPayment.mutate(loanId, {
@@ -39,7 +39,7 @@ const CheckoutForm = ({ loanId, amount }: { loanId: number, amount: number }) =>
           navigate('/app/librarian/loans');
         },
         onError: () => {
-          setErrorMessage('Płatność się powiodła, ale wystąpił błąd z potwierdzeniem jej w systemie biblioteki.');
+          setErrorMessage('Payment successful, but an error occurred confirming it with the library.');
           setIsProcessing(false);
         }
       });
@@ -51,7 +51,7 @@ const CheckoutForm = ({ loanId, amount }: { loanId: number, amount: number }) =>
       <PaymentElement />
       {errorMessage && <div className="text-sm text-red-500">{errorMessage}</div>}
       <Button type="submit" disabled={!stripe || isProcessing} className="w-full">
-        {isProcessing ? 'Przetwarzanie...' : `Zapłać ${amount.toFixed(2)} PLN`}
+        {isProcessing ? 'Processing...' : `Pay ${amount.toFixed(2)} PLN`}
       </Button>
     </form>
   );
@@ -79,7 +79,7 @@ export default function PaymentPage() {
         setPaymentDetails({ amount: data.amount || 2.00, type: data.type || 'INITIAL' });
       },
       onError: (error: any) => {
-        alert('Nie udało się wygenerować sesji płatności: ' + (error?.data?.error || error.message));
+        alert('Failed to generate payment session: ' + (error?.data?.error || error.message));
         navigate('/app/librarian/loans');
       }
     });
@@ -89,18 +89,18 @@ export default function PaymentPage() {
     return (
       <div className="flex justify-center items-center h-full min-h-[50vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-3 text-gray-600">Przygotowywanie sesji płatności...</span>
+        <span className="ml-3 text-gray-600">Preparing payment session...</span>
       </div>
     );
   }
 
   return (
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md border border-gray-100">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">Finalizacja wypożyczenia #{loanId}</h1>
+      <h1 className="text-2xl font-bold mb-6 text-gray-800">Finalizing loan #{loanId}</h1>
       <p className="text-gray-600 mb-6">
         {paymentDetails?.type === 'PENALTY' 
-          ? `Wprowadź dane karty, aby opłacić karę za opóźniony zwrot (${paymentDetails?.amount.toFixed(2)} PLN).` 
-          : `Wprowadź dane karty, aby opłacić startowy koszt wypożyczenia książki (${paymentDetails?.amount?.toFixed(2) || '2.00'} PLN).`}
+          ? `Enter card details to pay the late return penalty (${paymentDetails?.amount.toFixed(2)} PLN).` 
+          : `Enter card details to pay the initial base loan cost (${paymentDetails?.amount?.toFixed(2) || '2.00'} PLN).`}
       </p>
       
       <Elements stripe={stripePromise} options={{ clientSecret }}>
@@ -108,7 +108,7 @@ export default function PaymentPage() {
       </Elements>
       
       <Button variant="ghost" className="w-full mt-4" onClick={() => navigate('/app/librarian/loans')}>
-        Anuluj i wróć do listy
+        Cancel and return to list
       </Button>
     </div>
   );

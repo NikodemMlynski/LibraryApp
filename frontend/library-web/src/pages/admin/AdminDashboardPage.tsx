@@ -36,20 +36,20 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col h-full space-y-6 p-6 bg-gray-50/50">
-      {/* Nagłówek i Szybkie Akcje */}
+      {/* Nagłówek i Szybkie Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Admin Control Center</h1>
-          <p className="text-sm text-gray-500 mt-1">Przegląd kondycji systemu, finansów i bezpieczeństwa.</p>
+          <p className="text-sm text-gray-500 mt-1">Overview of system health, finances, and security.</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => navigate('/app/admin/users')} variant="outline" className="flex items-center gap-2 bg-white">
             <UserPlus className="h-4 w-4" />
-            Zarządzaj Użytkownikami
+            Manage Users
           </Button>
           <Button onClick={() => navigate('/app/admin/logs')} className="flex items-center gap-2">
             <ScrollText className="h-4 w-4" />
-            Pełny Dziennik Logów
+            Full Audit Logs
           </Button>
         </div>
       </div>
@@ -59,7 +59,7 @@ export default function AdminDashboardPage() {
         <Card className="shadow-sm border-gray-100">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1">Zarejestrowani Użytkownicy</p>
+              <p className="text-sm font-medium text-gray-500 mb-1">Registered Users</p>
               <h3 className="text-2xl font-bold text-gray-900">
                 {isLoadingUsers ? '...' : totalUsers}
               </h3>
@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
         <Card className="shadow-sm border-gray-100">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1">Całkowity Przychód</p>
+              <p className="text-sm font-medium text-gray-500 mb-1">Total Revenue</p>
               <h3 className="text-2xl font-bold text-gray-900">
                 {isLoadingTx ? '...' : `${totalRevenue.toFixed(2)} PLN`}
               </h3>
@@ -87,8 +87,8 @@ export default function AdminDashboardPage() {
         <Card className="shadow-sm border-gray-100">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1">Status Systemu</p>
-              <h3 className="text-2xl font-bold text-emerald-600">Aktywny</h3>
+              <p className="text-sm font-medium text-gray-500 mb-1">System Status</p>
+              <h3 className="text-2xl font-bold text-emerald-600">Active</h3>
             </div>
             <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
               <Activity className="h-6 w-6" />
@@ -99,7 +99,7 @@ export default function AdminDashboardPage() {
         <Card className="shadow-sm border-gray-100">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1">Ostrzeżenia (Ostatnie Logi)</p>
+              <p className="text-sm font-medium text-gray-500 mb-1">Warnings (Recent Logs)</p>
               <h3 className={`text-2xl font-bold ${errorLogsCount > 0 ? 'text-red-600' : 'text-gray-900'}`}>
                 {isLoadingLogs ? '...' : errorLogsCount}
               </h3>
@@ -117,25 +117,25 @@ export default function AdminDashboardPage() {
         {/* Lewa kolumna (Szersza) - Ostatnie Transakcje */}
         <Card className="lg:col-span-2 shadow-sm border-gray-100 flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-bold text-gray-800">Ostatnie Przepływy Finansowe</CardTitle>
+            <CardTitle className="text-lg font-bold text-gray-800">Recent Financial Flows</CardTitle>
             <Button variant="ghost" size="sm" onClick={() => navigate('/app/admin/payments')} className="text-blue-600 hover:text-blue-800">
-              Zobacz wszystkie <ArrowRight className="ml-1 h-4 w-4" />
+              See all <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent className="flex-1">
             {isLoadingTx ? (
               <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-b-2 border-blue-500 rounded-full"></div></div>
             ) : recentTransactions.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Brak ostatnich transakcji.</div>
+              <div className="text-center py-8 text-gray-500">No recent transactions.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-gray-50/50 text-gray-500">
                     <tr>
                       <th className="px-4 py-3 font-medium rounded-tl-lg">ID</th>
-                      <th className="px-4 py-3 font-medium">Użytkownik</th>
-                      <th className="px-4 py-3 font-medium text-right">Kwota</th>
-                      <th className="px-4 py-3 font-medium">Data</th>
+                      <th className="px-4 py-3 font-medium">User</th>
+                      <th className="px-4 py-3 font-medium text-right">Amount</th>
+                      <th className="px-4 py-3 font-medium">Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -156,16 +156,16 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Prawa kolumna (Węższa) - Aktywność Systemowa na żywo */}
+        {/* Prawa kolumna (Węższa) - System Activity na żywo */}
         <Card className="shadow-sm border-gray-100 flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-bold text-gray-800">Aktywność Systemowa</CardTitle>
+            <CardTitle className="text-lg font-bold text-gray-800">System Activity</CardTitle>
           </CardHeader>
           <CardContent className="flex-1">
             {isLoadingLogs ? (
               <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-b-2 border-blue-500 rounded-full"></div></div>
             ) : recentLogs.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Brak logów systemowych.</div>
+              <div className="text-center py-8 text-gray-500">No system logs.</div>
             ) : (
               <div className="space-y-4">
                 {recentLogs.map((log) => (

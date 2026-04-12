@@ -247,7 +247,7 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL: Dodawanie Bibliotekarza */}
+      {/* MODAL: Dodawanie Librariana */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <DialogContent>
           <form onSubmit={handleAddLibrarian}>

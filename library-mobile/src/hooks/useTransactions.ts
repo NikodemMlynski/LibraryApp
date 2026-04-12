@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 
-// Pamiętaj o użyciu poprawnego adresu IP tak jak w innych hookach!
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.62:8089/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL as string;
 
 export interface PaymentTransaction {
     id: number;

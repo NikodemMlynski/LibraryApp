@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Button } from '@/components/ui/button';
+import { STRIPE_PUBLIC_KEY } from '@/config/constants';
 
-// Mock stripe public test key for development. In production it should be in env.
-const stripePromise = loadStripe('pk_test_TYooMQauvdEDq54NiTphI7jx');
+const stripePromise = loadStripe(STRIPE_PUBLIC_KEY);
 
 const CheckoutForm = ({ onSuccess, onCancel }: { onSuccess: () => void, onCancel: () => void }) => {
   const stripe = useStripe();

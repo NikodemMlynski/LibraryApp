@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useLibrarianLoans, useUpdateLibrarianLoan } from '../../hooks/useLoans';
 import { useBooks } from '../../hooks/useBooks';
 import { useAddLibrarian } from '../../hooks/useUsers';
+import { useAuditLogs } from '../../hooks/useLogs';
+import type { ActionType } from '../../hooks/useLogs';
 
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -13,12 +15,39 @@ import { useNavigate } from 'react-router-dom';
 
 import { BookOpen, AlertCircle, Clock, Archive, Plus, Bell } from 'lucide-react';
 
+const getLogAppearance = (action: ActionType) => {
+  switch (action) {
+    case 'PAYMENT_SUCCESS':
+    case 'PAYMENT_FEE_SUCCESS':
+      return { colorClass: 'bg-blue-500', title: 'Paid' };
+    case 'LOAN_RETURNED_ON_TIME':
+    case 'BOOK_RETURNED':
+      return { colorClass: 'bg-green-500', title: 'Book returned' };
+    case 'LOAN_CREATED':
+    case 'BOOK_ADDED':
+      return { colorClass: 'bg-purple-500', title: 'New activity' };
+    case 'LOAN_OVERDUE_MARKED':
+      return { colorClass: 'bg-red-500', title: 'Overdue' };
+    case 'BOOK_LOST_OR_DAMAGED':
+    case 'PAYMENT_FAILED':
+    case 'LIBRARIAN_DELETED':
+      return { colorClass: 'bg-gray-800', title: 'Negative event' };
+    case 'USER_REGISTERED':
+    case 'LIBRARIAN_ADDED':
+      return { colorClass: 'bg-indigo-500', title: 'New user' };
+    default:
+      return { colorClass: 'bg-gray-400', title: 'System log' };
+  }
+};
+
 export default function DashboardPage() {
   // KPI Data
   const { data: activeLoans } = useLibrarianLoans('ACTIVE', 1);
   const { data: overdueLoans } = useLibrarianLoans('OVERDUE', 1);
   const { data: pendingLoans } = useLibrarianLoans('PENDING_PAYMENT', 1);
   const { data: booksData } = useBooks(0, 1); // just to get totalElements
+  const { data: auditLogsData, isLoading: isLogsLoading } = useAuditLogs();
+  const recentLogs = auditLogsData?.pages?.[0]?.items?.slice(0, 4) || [];
 
   const navigate = useNavigate();
 
@@ -27,14 +56,14 @@ export default function DashboardPage() {
 
   // Mock Notification
   const handleNotify = (userId: string) => {
-    alert(`Zlecono wysłanie powiadomienia (Upomnienie) do użytkownika #${userId} za pośrednictwem notify-service!`);
+    alert(`A reminder notification was triggered for user #${userId} via notify-service!`);
   };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Panel Główny</h1>
-        <p className="text-gray-500 mt-1">Przegląd sytuacji w bibliotece na żywo.</p>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+        <p className="text-gray-500 mt-1">Live overview of the library.</p>
       </div>
 
       {/* --- 1. KPI Cards --- */}
@@ -45,12 +74,12 @@ export default function DashboardPage() {
           onClick={() => navigate('/app/librarian/loans?status=ACTIVE')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-gray-600">Aktywne Wypożyczenia</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Active Loans</CardTitle>
             <BookOpen className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900">{activeLoans?.count ?? '-'}</div>
-            <p className="text-xs text-gray-500 mt-1">Obecnie czytane książki</p>
+            <p className="text-xs text-gray-500 mt-1">Currently read books</p>
           </CardContent>
         </Card>
 
@@ -60,12 +89,12 @@ export default function DashboardPage() {
           onClick={() => navigate('/app/librarian/loans?status=OVERDUE')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-red-800">Przetrzymane</CardTitle>
+            <CardTitle className="text-sm font-medium text-red-800">Overdue</CardTitle>
             <AlertCircle className="h-5 w-5 text-red-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-700">{overdueLoans?.count ?? '-'}</div>
-            <p className="text-xs text-red-600/80 mt-1">wymagają interwencji</p>
+            <p className="text-xs text-red-600/80 mt-1">needs attention</p>
           </CardContent>
         </Card>
 
@@ -75,12 +104,12 @@ export default function DashboardPage() {
           onClick={() => navigate('/app/librarian/loans?status=PENDING_PAYMENT')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-amber-800">Oczekujące Płatności</CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-800">Pending Payments</CardTitle>
             <Clock className="h-5 w-5 text-amber-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900">{pendingLoans?.count ?? '-'}</div>
-            <p className="text-xs text-gray-500 mt-1">Kary zablokowane</p>
+            <p className="text-xs text-gray-500 mt-1">Blocked by penalties</p>
           </CardContent>
         </Card>
 
@@ -90,12 +119,12 @@ export default function DashboardPage() {
           onClick={() => navigate('/app/librarian/loans?status=ALL')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-gray-600">Stan Katalogu</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Catalog Size</CardTitle>
             <Archive className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900">{booksData?.totalElements ?? '-'}</div>
-            <p className="text-xs text-gray-500 mt-1">Zarejestrowanych pozycji</p>
+            <p className="text-xs text-gray-500 mt-1">Registered books</p>
           </CardContent>
         </Card>
       </div>
@@ -108,7 +137,7 @@ export default function DashboardPage() {
           className="bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2 h-14 px-6 rounded-xl"
         >
           <Plus className="h-5 w-5" />
-          Nowe Wypożyczenie
+          New Loan
         </Button>
       </div>
 
@@ -116,25 +145,25 @@ export default function DashboardPage() {
         {/* --- 3. Actionable Items (Wymaga uwagi) --- */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-800">Wymaga Twojej Uwagi</h2>
-            <span className="text-sm text-gray-500">Najpilniejsze zaległości</span>
+            <h2 className="text-xl font-semibold text-gray-800">Requires Attention</h2>
+            <span className="text-sm text-gray-500">Most urgent overdues</span>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Użytkownik</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Wypożyczenie ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Szacowana Kara</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Akcja</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Loan ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Est. Penalty</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 {!overdueLoans?.results || overdueLoans.results.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-10 text-center text-gray-500">
-                      Brak zaległych wypożyczeń. Wszystko w porządku!
+                      No overdue loans. All good!
                     </td>
                   </tr>
                 ) : (
@@ -144,8 +173,8 @@ export default function DashboardPage() {
                         {loan.user_id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        Książka #{loan.book_id} <br/>
-                        <span className="text-xs text-red-500">Limit: {new Date(loan.due_date).toLocaleDateString()}</span>
+                        Book #{loan.book_id} <br/>
+                        <span className="text-xs text-red-500">Due: {new Date(loan.due_date).toLocaleDateString()}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
                         {/* Fake penalty calculation for visuals if backend doesn't provide it directly in the loan object */}
@@ -159,7 +188,7 @@ export default function DashboardPage() {
                           onClick={() => handleNotify(loan.user_id)}
                         >
                           <Bell className="h-4 w-4 mr-2" />
-                          Upomnienie
+                          Reminder
                         </Button>
                       </td>
                     </tr>
@@ -172,39 +201,32 @@ export default function DashboardPage() {
 
         {/* --- 4. Recent Feed --- */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-gray-800">Ostatnia Aktywność</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Recent Activity</h2>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="relative border-l-2 border-gray-200 ml-3 space-y-8">
-              
-              <div className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-blue-500 ring-4 ring-white" />
-                <p className="text-sm font-medium text-gray-900">Jan Kowalski opłacił karę</p>
-                <p className="text-xs text-gray-500">Dzisiaj, 11:45 • Kwota: 2.50 PLN</p>
-              </div>
-
-              <div className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-green-500 ring-4 ring-white" />
-                <p className="text-sm font-medium text-gray-900">Zwrócono "Wiedźmina"</p>
-                <p className="text-xs text-gray-500">Dzisiaj, 10:30 • Zwrócił: Piotr Nowak</p>
-              </div>
-
-              <div className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-purple-500 ring-4 ring-white" />
-                <p className="text-sm font-medium text-gray-900">Nowe wypożyczenie</p>
-                <p className="text-xs text-gray-500">Dzisiaj, 09:12 • "Zbrodnia i kara"</p>
-              </div>
-
-              <div className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-red-500 ring-4 ring-white" />
-                <p className="text-sm font-medium text-gray-900">System naliczył kary (Celery)</p>
-                <p className="text-xs text-gray-500">Wczoraj, 23:59 • Dla 4 użytkowników</p>
-              </div>
-
-            </div>
             
-            <Button variant="ghost" className="w-full mt-6 text-sm text-gray-500">
-              Zobacz cały log
-            </Button>
+            {isLogsLoading ? (
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              </div>
+            ) : recentLogs.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                No recent activity.
+              </div>
+            ) : (
+              <div className="relative border-l-2 border-gray-200 ml-3 space-y-8">
+                {recentLogs.map((log) => {
+                  const appearance = getLogAppearance(log.action_type);
+                  const timeStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <div key={log.id} className="relative pl-6">
+                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full ${appearance.colorClass} ring-4 ring-white`} />
+                      <p className="text-sm font-medium text-gray-900">{appearance.title}</p>
+                      <p className="text-xs text-gray-500">{timeStr} • {log.metadata?.message || "System action"}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

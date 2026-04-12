@@ -12,14 +12,17 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://keycloak:8080/auth/realms/library-system
 
 stripe:
   api:
-    key: ${STRIPE_SECRET_KEY:sk_test_...}
+    key: ${STRIPE_SECRET_KEY}
   webhook:
-    secret: ${STRIPE_WEBHOOK_SECRET:whsec_...}
+    secret: ${STRIPE_WEBHOOK_SECRET}
+
+# --- DODANE ZMIENNE DO INTEGRACJI ---
+app:
+  keycloak:
+    internal-url: ${KEYCLOAK_INTERNAL_URL}
+    external-url: ${KEYCLOAK_URL}
+  analytics:
+    url: ${ANALYTICS_SERVICE_URL}

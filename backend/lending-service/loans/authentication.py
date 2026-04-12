@@ -50,12 +50,12 @@ class KeycloakJWTAuthentication(BaseAuthentication):
                 raise jwt.exceptions.InvalidIssuerError(f"Nieznany issuer JWT: {issuer}")
                 
         except Exception as e:
-            raise AuthenticationFailed(f"Nieprawidłowy lub wygasły token: {str(e)}")
+            raise AuthenticationFailed(f"Invalid or expired token: {str(e)}")
         
         # Sukces! Wyciągamy czytelną nazwę użytkownika (pole 'preferred_username')
         keycloak_username = payload.get('preferred_username')
         if not keycloak_username:
-            raise AuthenticationFailed("Brak preferred_username w tokenie")
+            raise AuthenticationFailed("No preferred_username in token")
         
         # Tworzymy lokalnego usera w Django w locie, żeby framework był "szczęśliwy"
         user, created = User.objects.get_or_create(username=keycloak_username)

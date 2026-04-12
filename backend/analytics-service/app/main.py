@@ -26,16 +26,29 @@ dynamodb = boto3.resource(
 )
 table = dynamodb.Table(TABLE_NAME)
 
-KEYCLOAK_CERTS_URL = "http://keycloak:8080/auth/realms/library-system/protocol/openid-connect/certs"
+# --- JWT VERIFICATION CONFIGURATION ---
+# Zewnętrzny URL - tego używamy do weryfikacji pola 'iss' (issuer) w tokenie
+KEYCLOAK_URL = os.environ.get("KEYCLOAK_URL", "http://localhost:8080/auth").rstrip('/')
+EXPECTED_ISSUER = f"{KEYCLOAK_URL}/realms/library-system"
 
-def get_public_key():
-    try:
-        response = requests.get(KEYCLOAK_CERTS_URL, timeout=5)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"Error fetching Keycloak certs: {e}")
-        return None
+# Wewnętrzny URL - tego używamy TYLKO do pobrania kluczy publicznych po sieci Dockera
+KEYCLOAK_INTERNAL_URL = os.environ.get("KEYCLOAK_INTERNAL_URL", "http://keycloak:8080/auth").rstrip('/')
+KEYCLOAK_CERTS_URL = f"{KEYCLOAK_INTERNAL_URL}/realms/library-system/protocol/openid-connect/certs"
+
+# Prosty cache na klucze publiczne, żeby nie odpytywać Keycloaka przy każdym zapytaniu
+JWKS_CACHE = {}
+
+def get_jwks():
+    global JWKS_CACHE
+    if not JWKS_CACHE:
+        try:
+            response = requests.get(KEYCLOAK_CERTS_URL, timeout=5)
+            response.raise_for_status()
+            JWKS_CACHE = response.json()
+        except Exception as e:
+            print(f"Error fetching Keycloak certs: {e}")
+            return None
+    return JWKS_CACHE
 
 def verify_token(authorization: str = Header(None)) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
@@ -43,13 +56,51 @@ def verify_token(authorization: str = Header(None)) -> dict:
     
     token = authorization.split(" ")[1]
     
-    # Do celów czysto demonstracyjnych/developerskich, ze względu na architekturę dockera
-    # możemy pominąć pełną weryfikację asymetryczną przez publiczny klucz i jedynie zdekodować token:
     try:
-        payload = jwt.get_unverified_claims(token)
+        # Wyciągamy nagłówek tokenu (nie weryfikując go jeszcze), żeby znaleźć 'kid' (Key ID)
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        if not kid:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token header: missing kid")
+        
+        jwks = get_jwks()
+        if not jwks:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to fetch public keys from IdP")
+        
+        # Szukamy klucza publicznego, który pasuje do podpisu w tokenie
+        rsa_key = {}
+        for key in jwks.get("keys", []):
+            if key["kid"] == kid:
+                rsa_key = {
+                    "kty": key["kty"],
+                    "kid": key["kid"],
+                    "use": key["use"],
+                    "n": key["n"],
+                    "e": key["e"]
+                }
+                break
+        
+        if not rsa_key:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Public key not found. Token signed by unknown source.")
+        
+        # OSTATECZNA WERYFIKACJA KRYPTOGRAFICZNA
+        payload = jwt.decode(
+            token,
+            rsa_key,
+            algorithms=["RS256"],
+            issuer=EXPECTED_ISSUER,
+            options={"verify_aud": False} 
+        )
         return payload
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token architecture")
+
+    except jwt.ExpiredSignatureError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
+    except jwt.JWTClaimsError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Incorrect claims: {e}")
+    except JWTError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token signature: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Authentication failed: {e}")
 
 
 @app.get("/health")

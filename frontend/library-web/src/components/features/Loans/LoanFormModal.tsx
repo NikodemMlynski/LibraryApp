@@ -36,7 +36,7 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({ isOpen, onClose })
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [createdLoanId, setCreatedLoanId] = useState<number | null>(null);
 
-  // Stany dla wyszukiwarki Użytkowników
+  // Stany dla wyszukiwarki Userów
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const debouncedUserSearch = useDebounce(userSearchTerm, 300);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
@@ -123,7 +123,7 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({ isOpen, onClose })
         <form onSubmit={handleSubmit} className="overflow-visible">
           <div className="grid gap-6 py-4">
             
-            {/* AUTOUZUPEŁNIANIE: Użytkownik */}
+            {/* AUTOUZUPEŁNIANIE: User */}
             <div className="relative">
               <Label className="mb-2 block">Find User</Label>
               <div className="relative">
@@ -166,7 +166,7 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({ isOpen, onClose })
               )}
             </div>
 
-            {/* AUTOUZUPEŁNIANIE: Książka */}
+            {/* AUTOUZUPEŁNIANIE: Book */}
             <div className="relative">
               <Label className="mb-2 block">Find Book</Label>
               <div className="relative">

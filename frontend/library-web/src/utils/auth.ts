@@ -15,7 +15,7 @@ export const getUserRoles = (user: User | null | undefined): string[] => {
     // Keycloak standardowo trzyma role tutaj:
     return decoded.realm_access?.roles || [];
   } catch (e) {
-    console.error("Błąd dekodowania tokenu", e);
+    console.error("Decode token error", e);
     return [];
   }
 };

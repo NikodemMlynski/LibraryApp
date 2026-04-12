@@ -11,7 +11,7 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   const auth = useAuth();
 
   if (auth.isLoading) {
-    return <div className="flex h-screen items-center justify-center">Sprawdzanie uprawnień...</div>;
+    return <div className="flex h-screen items-center justify-center">Checking permissions...</div>;
   }
 
   // Jeśli w ogóle nie jest zalogowany - wyrzuć na stronę logowania
@@ -27,8 +27,8 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
     if (!hasRequiredRole) {
       return (
         <div className="p-10 text-center text-red-500">
-          <h1 className="text-3xl font-bold">Brak dostępu (403)</h1>
-          <p>Nie posiadasz uprawnień do przeglądania tej strony.</p>
+          <h1 className="text-3xl font-bold">Access Denied (403)</h1>
+          <p>You do not have permission to view this page.</p>
         </div>
       );
     }

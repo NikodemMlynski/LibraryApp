@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { CreditCard, ArrowDownLeft } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.62:8089/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL as string;
 
 // Inteligentny komponent dociągający brakujący tytuł książki dla transakcji
 const AsyncTransactionBookTitle = ({ loanId, defaultTitle }: { loanId: number, defaultTitle: string }) => {
@@ -93,7 +93,7 @@ export default function TransactionsScreen() {
                 {/* Kwota po prawej */}
                 <View className="items-end pl-2">
                     <Text className="text-lg font-bold text-gray-900">
-                        -{Number(item.amount).toFixed(2)} zł
+                        -{Number(item.amount).toFixed(2)} PLN
                     </Text>
                     <View className="bg-green-100 px-2 py-0.5 rounded mt-1">
                         <Text className="text-[10px] font-bold text-green-700 uppercase">Paid</Text>

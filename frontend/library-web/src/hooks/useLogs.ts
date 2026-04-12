@@ -1,3 +1,4 @@
+import { ENDPOINTS } from '@/config/constants';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 
@@ -20,7 +21,6 @@ export interface PaginatedAuditLogs {
   total: number;
 }
 
-const API_URL = 'http://localhost/api/analytics';
 
 export const useAuditLogs = () => {
   const auth = useAuth();
@@ -29,7 +29,7 @@ export const useAuditLogs = () => {
   return useInfiniteQuery<PaginatedAuditLogs, Error>({
     queryKey: ['auditLogs'],
     queryFn: async ({ pageParam = 0 }) => {
-      const res = await fetch(`${API_URL}/admin/logs?skip=${pageParam}&limit=20`, {
+      const res = await fetch(`${ENDPOINTS.ANALYTICS}/admin/logs?skip=${pageParam}&limit=20`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

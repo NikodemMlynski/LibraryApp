@@ -7,10 +7,10 @@ from django.contrib.auth.models import User
 
 @shared_task
 def check_overdue_loans():
-    print(f"[{now()}] URUCHAMIANIE ZADANIA check_overdue_loans...")
+    print(f"[{now()}] Starting check_overdue_loans task...")
     # Pobierz z bazy wszystkie obiekty Loan, gdzie status to 'ACTIVE' lub 'OVERDUE' oraz due_date jest mniejsze niż now().
     overdue_loans = Loan.objects.filter(status__in=['ACTIVE', 'OVERDUE'], due_date__lt=now())
-    print(f"[{now()}] Znaleziono {overdue_loans.count()} przeterminowanych wypożyczeń w bazie danych.")
+    print(f"[{now()}] Found {overdue_loans.count()} overdue loans in database.")
     count = 0
     
     from decimal import Decimal
@@ -28,7 +28,7 @@ def check_overdue_loans():
             action_type="LOAN_OVERDUE_MARKED",
             actor_id="system-celery",
             visibility="LIBRARIAN",
-            metadata={"loan_id": loan.id, "days_overdue": days_overdue, "message": f"System oznaczył wypożyczenie {loan.id} użytkownika {loan.user_id} jako przetrzymane."}
+            metadata={"loan_id": loan.id, "days_overdue": days_overdue, "message": f"System marked loan {loan.id} of user {loan.user_id} as overdue."}
         )
         
         # Dla każdego z nich wyślij żądanie POST do notify-service
@@ -40,9 +40,11 @@ def check_overdue_loans():
             try:
                 admin_user = os.environ.get('KEYCLOAK_ADMIN_USER', 'admin')
                 admin_password = os.environ.get('KEYCLOAK_ADMIN_PASSWORD', 'twoje_tajne_haslo')
-                keycloak_url = os.environ.get('KEYCLOAK_URL', 'http://keycloak:8080')
                 
-                token_url = f"{keycloak_url}/auth/realms/master/protocol/openid-connect/token"
+                # ZMIANA 1: Używamy wewnętrznego adresu i pilnujemy, by nie było podwójnego /auth
+                keycloak_internal_url = os.environ.get('KEYCLOAK_INTERNAL_URL', 'http://keycloak:8080/auth').rstrip('/')
+                
+                token_url = f"{keycloak_internal_url}/realms/master/protocol/openid-connect/token"
                 token_data = {
                     'client_id': 'admin-cli',
                     'username': admin_user,
@@ -53,7 +55,8 @@ def check_overdue_loans():
                 token_res = requests.post(token_url, data=token_data, timeout=5)
                 if token_res.status_code == 200:
                     access_token = token_res.json().get('access_token')
-                    users_url = f"{keycloak_url}/auth/admin/realms/library-system/users?username={loan.user_id}&exact=true"
+                    # ZMIANA 2: Usunięto nadmiarowe /auth z url-a
+                    users_url = f"{keycloak_internal_url}/admin/realms/library-system/users?username={loan.user_id}&exact=true"
                     headers = {'Authorization': f'Bearer {access_token}'}
                     users_res = requests.get(users_url, headers=headers, timeout=5)
                     
@@ -67,7 +70,7 @@ def check_overdue_loans():
                             else:
                                 User.objects.create(username=loan.user_id, email=user_email)
             except Exception as e:
-                print(f"Błąd przy pobieraniu emaila z Keycloak dla usera {loan.user_id}: {e}")
+                print(f"Error fetching email from Keycloak for user {loan.user_id}: {e}")
             
             if not user_email:
                 user_email = f"{loan.user_id}@example.com" 
@@ -75,12 +78,14 @@ def check_overdue_loans():
         notification_payload = {
             "user_id": str(loan.user_id),
             "recipient_email": user_email,
-            "subject": "Twoje wypożyczenie zostało opóźnione / Overdue Loan",
-            "message_body": f"Książka o ID {loan.book_id} nie została zwrócona w terminie. Prosimy o natychmiastowy zwrot.\n\nBook ID {loan.book_id} is overdue. Please return it immediately."
+            "subject": "Your loan is overdue",
+            "message_body": f"Book ID {loan.book_id} is overdue. Please return it immediately."
         }
 
         try:
-            res = requests.post("http://notify-service:8000/notifications/send", json=notification_payload, timeout=5)
+            # ZMIANA 3: Użycie dynamicznego URL dla Notify Service
+            notify_url = os.environ.get("NOTIFY_SERVICE_URL", "http://notify-service:8000")
+            res = requests.post(f"{notify_url}/notifications/send", json=notification_payload, timeout=5)
             print(f"Notify service response: {res.status_code} - {res.text}")
         except Exception as e:
             print(f"Failed to send overdue notification to notify-service for loan id {loan.id}: {e}")
