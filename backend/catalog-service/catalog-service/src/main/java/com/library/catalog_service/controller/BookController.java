@@ -1,5 +1,6 @@
 package com.library.catalog_service.controller;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -41,6 +42,9 @@ public class BookController {
 
     @Autowired
     private S3Service s3Service;
+
+    @Value("${app.analytics-service.url}")
+    private String analyticsServiceUrl;
 
     @GetMapping
     public Page<Book> getAllBooks(
@@ -105,7 +109,7 @@ public class BookController {
                 requestBody.put("metadata", metadata);
 
                 HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-                restTemplate.postForLocation("http://analytics-service:8000/internal/logs", request);
+                restTemplate.postForLocation(analyticsServiceUrl + "/internal/logs", request);
             } catch (Exception ex) {
                 System.out.println("Błąd wysyłania logu do analytics-service: " + ex.getMessage());
             }

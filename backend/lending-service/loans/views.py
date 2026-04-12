@@ -12,7 +12,12 @@ from django.contrib.auth.models import User
 from django.db.models import Case, When, Value, IntegerField
 from .audit import send_audit_log
 
-CATALOG_SERVICE_URL = "http://catalog-service:8081/api/catalog/books"
+# --- ADRESY ZEWNĘTRZNYCH MIKROSERWISÓW ---
+CATALOG_BASE_URL = os.environ.get("CATALOG_SERVICE_URL", "http://catalog-service:8081").rstrip('/')
+CATALOG_SERVICE_URL = f"{CATALOG_BASE_URL}/api/catalog/books"
+
+PAYMENT_BASE_URL = os.environ.get("PAYMENT_SERVICE_URL", "http://payment-service:8082").rstrip('/')
+PAYMENT_INTENT_URL = f"{PAYMENT_BASE_URL}/api/payments/create-intent"
 class BorrowBookView(APIView):
     permission_classes = [IsAuthenticated]        
 
@@ -54,7 +59,7 @@ class BorrowBookView(APIView):
         client_secret = None
         try:
             # Używamy payment_payload zamiast twardo wpisanego słownika
-            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json=payment_payload, headers=headers, timeout=5)
+            payment_res = requests.post(PAYMENT_INTENT_URL, json=payment_payload, headers=headers, timeout=5)
             if payment_res.status_code == 200:
                 if 'application/json' in payment_res.headers.get('Content-Type', ''):
                     client_secret = payment_res.json().get('clientSecret')
@@ -252,7 +257,7 @@ class LibrarianCreateLoanView(APIView):
 
         client_secret = None
         try:
-            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json=payment_payload, headers=headers, timeout=5)
+            payment_res = requests.post(PAYMENT_INTENT_URL, json=payment_payload, headers=headers, timeout=5)
             if payment_res.status_code == 200:
                 if 'application/json' in payment_res.headers.get('Content-Type', ''):
                     client_secret = payment_res.json().get('clientSecret')
@@ -283,11 +288,15 @@ class LibrarianUpdateLoanView(APIView):
             return Response({"error": "Loan not found"}, status=status.HTTP_404_NOT_FOUND)
             
         action = request.data.get('action') 
+        new_status = request.data.get('status')
+        new_due_date = request.data.get('due_date')
         
         auth_header = request.headers.get('Authorization')
         headers = {'Authorization': auth_header} if auth_header else {}
         
-        if action == 'return' and loan.status != 'RETURNED':
+        is_returning = (action == 'return' or new_status == 'RETURNED')
+        
+        if is_returning and loan.status != 'RETURNED':
             if loan.status == 'PENDING_PAYMENT':
                 return Response({"error": "Cannot return an unpaid loan. Please complete the payment first."}, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -303,10 +312,16 @@ class LibrarianUpdateLoanView(APIView):
                     
             try:
                 response = requests.get(f"{CATALOG_SERVICE_URL}/{loan.book_id}", headers=headers)
-                if response.status_code == 200:
-                    book_data = response.json()
-                    book_data['availableCopies'] += 1
-                    requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", data=book_data, headers=headers)
+                if response.status_code != 200:
+                    return Response({"error": "Book not found in Catalog Service"}, status=status.HTTP_404_NOT_FOUND)
+                
+                book_data = response.json()
+                book_data['availableCopies'] += 1
+                
+                update_response = requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", data=book_data, headers=headers)
+                
+                if update_response.status_code != 200:
+                    return Response({"error": "Failed to update catalog"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             except requests.exceptions.RequestException:
                 return Response({"error": "Error communicating with Catalog Service"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
@@ -327,10 +342,7 @@ class LibrarianUpdateLoanView(APIView):
             
             return Response(LoanSerializer(loan).data)
             
-        new_status = request.data.get('status')
-        new_due_date = request.data.get('due_date')
-        
-        if new_status:
+        if new_status and new_status != 'RETURNED':
             loan.status = new_status
         if new_due_date:
             loan.due_date = new_due_date
@@ -425,9 +437,11 @@ class ConfirmPaymentView(APIView):
                 if response.status_code == 200:
                     book_data = response.json()
                     book_data['availableCopies'] += 1
-                    requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", json=book_data, headers=headers)
-            except requests.exceptions.RequestException:
-                pass
+                    update_response = requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", data=book_data, headers=headers)
+                    if update_response.status_code != 200:
+                        print(f"Failed to update catalog: {update_response.text}")
+            except requests.exceptions.RequestException as e:
+                print(f"Error updating catalog: {e}")
             
             return Response({"message": "Kara opłacona pomyślnie. Książka zwrócona."})
         
@@ -473,7 +487,7 @@ class InitPaymentView(APIView):
         }
 
         try:
-            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json=payload, headers=headers, timeout=5)
+            payment_res = requests.post(PAYMENT_INTENT_URL, json=payload, headers=headers, timeout=5)
             if payment_res.status_code == 200:
                 if 'application/json' in payment_res.headers.get('Content-Type', ''):
                     client_secret = payment_res.json().get('clientSecret')
@@ -582,7 +596,7 @@ class ReaderInitPaymentView(APIView):
         }
 
         try:
-            payment_res = requests.post("http://payment-service:8082/api/payments/create-intent", json=payload, headers=headers, timeout=5)
+            payment_res = requests.post(PAYMENT_INTENT_URL, json=payload, headers=headers, timeout=5)
             if payment_res.status_code == 200:
                 if 'application/json' in payment_res.headers.get('Content-Type', ''):
                     client_secret = payment_res.json().get('clientSecret')
@@ -621,9 +635,11 @@ class ReaderConfirmPaymentView(APIView):
                 if response.status_code == 200:
                     book_data = response.json()
                     book_data['availableCopies'] += 1
-                    requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", json=book_data, headers=headers)
-            except requests.exceptions.RequestException:
-                pass
+                    update_response = requests.put(f"{CATALOG_SERVICE_URL}/{loan.book_id}", data=book_data, headers=headers)
+                    if update_response.status_code != 200:
+                        print(f"Failed to update catalog: {update_response.text}")
+            except requests.exceptions.RequestException as e:
+                print(f"Error updating catalog: {e}")
             
             return Response({"message": "Kara opłacona pomyślnie. Książka zwrócona."})
         

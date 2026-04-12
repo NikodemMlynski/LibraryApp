@@ -40,9 +40,11 @@ def check_overdue_loans():
             try:
                 admin_user = os.environ.get('KEYCLOAK_ADMIN_USER', 'admin')
                 admin_password = os.environ.get('KEYCLOAK_ADMIN_PASSWORD', 'twoje_tajne_haslo')
-                keycloak_url = os.environ.get('KEYCLOAK_URL', 'http://keycloak:8080')
                 
-                token_url = f"{keycloak_url}/auth/realms/master/protocol/openid-connect/token"
+                # ZMIANA 1: Używamy wewnętrznego adresu i pilnujemy, by nie było podwójnego /auth
+                keycloak_internal_url = os.environ.get('KEYCLOAK_INTERNAL_URL', 'http://keycloak:8080/auth').rstrip('/')
+                
+                token_url = f"{keycloak_internal_url}/realms/master/protocol/openid-connect/token"
                 token_data = {
                     'client_id': 'admin-cli',
                     'username': admin_user,
@@ -53,7 +55,8 @@ def check_overdue_loans():
                 token_res = requests.post(token_url, data=token_data, timeout=5)
                 if token_res.status_code == 200:
                     access_token = token_res.json().get('access_token')
-                    users_url = f"{keycloak_url}/auth/admin/realms/library-system/users?username={loan.user_id}&exact=true"
+                    # ZMIANA 2: Usunięto nadmiarowe /auth z url-a
+                    users_url = f"{keycloak_internal_url}/admin/realms/library-system/users?username={loan.user_id}&exact=true"
                     headers = {'Authorization': f'Bearer {access_token}'}
                     users_res = requests.get(users_url, headers=headers, timeout=5)
                     
@@ -80,7 +83,9 @@ def check_overdue_loans():
         }
 
         try:
-            res = requests.post("http://notify-service:8000/notifications/send", json=notification_payload, timeout=5)
+            # ZMIANA 3: Użycie dynamicznego URL dla Notify Service
+            notify_url = os.environ.get("NOTIFY_SERVICE_URL", "http://notify-service:8000")
+            res = requests.post(f"{notify_url}/notifications/send", json=notification_payload, timeout=5)
             print(f"Notify service response: {res.status_code} - {res.text}")
         except Exception as e:
             print(f"Failed to send overdue notification to notify-service for loan id {loan.id}: {e}")

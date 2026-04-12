@@ -30,6 +30,9 @@ public class StripeService {
 
     private final PaymentFeeRepository paymentRepository;
 
+    @Value("${app.analytics.url}")
+    private String analyticsServiceUrl;
+
     @Value("${stripe.api.key}")
     private String stripeApiKey;
 
@@ -108,7 +111,7 @@ public class StripeService {
                             requestBody.put("metadata", metadata);
 
                             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-                            restTemplate.postForLocation("http://analytics-service:8000/internal/logs", request);
+                            restTemplate.postForLocation(analyticsServiceUrl + "/internal/logs", request);
                         } catch (Exception ex) {
                             System.out.println("Błąd wysyłania logu do analytics-service: " + ex.getMessage());
                         }
@@ -142,7 +145,7 @@ public class StripeService {
                             requestBody.put("metadata", metadata);
 
                             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-                            restTemplate.postForLocation("http://analytics-service:8000/internal/logs", request);
+                            restTemplate.postForLocation(analyticsServiceUrl + "/internal/logs", request);
                         } catch (Exception ex) {
                             System.out.println("Błąd logowania porażki: " + ex.getMessage());
                         }
